@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Color Echo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header, score row, a round 2x2 pad board with a centre button */
+  :root {
+    --bg: #2b1d52; --ink: #ffffff; --card: #3b2a6e; --muted: #c9bff0;
+    --p1: #22c55e; --p2: #ef4444; --p3: #facc15; --p4: #3b82f6;
+    --font: "Fredoka", "Comic Sans MS", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at 50% 30%, #44307e, var(--bg) 70%) fixed, var(--bg); color: var(--ink); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 4px solid #fff; outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .top h1 { flex: 1; margin: 0; font-size: clamp(24px, 5vw, 36px); text-align: center; }
+  .round { width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--card); color: var(--ink); display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0,0,0,.3); flex: none; }
+  .round svg { width: 26px; height: 26px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .scores { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .pill { background: var(--card); border-radius: 999px; padding: 8px 18px; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .msg { font-size: clamp(22px, 5vw, 28px); font-weight: 700; text-align: center; min-height: 1.3em; margin: 0; }
+  .board { position: relative; width: min(92vw, 440px); aspect-ratio: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; border-radius: 50%; background: #1a1236; box-shadow: 0 10px 0 rgba(0,0,0,.35); max-width: 100%; }
+  .pad { border: none; display: grid; place-items: center; opacity: .55; transition: opacity .08s, transform .08s, filter .08s; color: rgba(0,0,0,.45); font-size: 22px; font-weight: 700; }
+  .pad svg { width: 34%; height: 34%; }
+  .pad[data-i="0"] { background: var(--p1); border-radius: 100% 12px 12px 12px; }
+  .pad[data-i="1"] { background: var(--p2); border-radius: 12px 100% 12px 12px; }
+  .pad[data-i="2"] { background: var(--p3); border-radius: 12px 12px 12px 100%; }
+  .pad[data-i="3"] { background: var(--p4); border-radius: 12px 12px 100% 12px; }
+  .pad.lit { opacity: 1; filter: brightness(1.25) drop-shadow(0 0 18px rgba(255,255,255,.7)); transform: scale(.97); }
+  .board.locked .pad { cursor: default; }
+  .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34%; aspect-ratio: 1; border-radius: 50%; border: 8px solid #1a1236; background: #fff; color: #2b1d52; font-size: clamp(18px, 4.5vw, 24px); font-weight: 700; display: grid; place-items: center; text-align: center; line-height: 1.1; }
+  .modes { display: flex; gap: 10px; }
+  .mode { min-height: 48px; border: 2px solid var(--muted); background: transparent; color: var(--ink); border-radius: 999px; padding: 6px 18px; font-size: 18px; font-weight: 600; }
+  .mode[aria-pressed="true"] { background: #fff; color: #2b1d52; border-color: #fff; }
+  .help { color: var(--muted); font-size: 16px; text-align: center; margin: 0; }
+  @media (prefers-reduced-motion: reduce) { .pad { transition: none; } .pad.lit { transform: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="round" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>Color Echo</h1>
+  <button class="round" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <div class="scores"><span class="pill">Score: <b id="score">0</b></span><span class="pill">Best: <b id="best">0</b></span></div>
+  <p class="msg" id="msg" aria-live="polite">Watch the lights, then copy them!</p>
+  <div class="board locked" id="board">
+    <button class="pad" data-i="0" aria-label="Green triangle, 1"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l10 18H2z"/></svg></button>
+    <button class="pad" data-i="1" aria-label="Red square, 2"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
+    <button class="pad" data-i="2" aria-label="Yellow circle, 3"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg></button>
+    <button class="pad" data-i="3" aria-label="Blue diamond, 4"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l11 11-11 11L1 12z"/></svg></button>
+    <button class="center" id="go">Start</button>
+  </div>
+  <div class="modes" role="group" aria-label="Speed">
+    <button class="mode" data-speed="slow">Slow</button>
+    <button class="mode" data-speed="normal">Normal</button>
+    <button class="mode" data-speed="fast">Fast</button>
+  </div>
+  <p class="help">Keyboard: 1 2 3 4 for the pads, Space to start.</p>
+</main>
+
+<script>
+/* ---------- Settings you can change ---------- */
+const NOTES = [329.63, 261.63, 196.0, 164.81];   // one note per pad
+const SPEEDS = { slow: 750, normal: 520, fast: 330 }; // milliseconds per light
+
+/* ---------- Shared helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.2, type = 'triangle', v = 0.15, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+
+/* ---------- Game ---------- */
+let seq = [], step = 0, playing = false, listening = false, speed = store.get('colorEcho.speed', 'normal');
+const pads = [...document.querySelectorAll('.pad')];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const bestKey = () => 'colorEcho.best.' + speed;
+
+function setSpeed(s) {
+  speed = s; store.set('colorEcho.speed', s);
+  document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.speed === s)));
+  $('best').textContent = store.get(bestKey(), 0);
+}
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => { if (!playing) setSpeed(b.dataset.speed); });
+setSpeed(speed);
+
+async function flash(i, ms) {
+  pads[i].classList.add('lit'); tone(NOTES[i], ms / 1000 * 0.9, 'triangle', 0.2);
+  await sleep(ms * 0.7); pads[i].classList.remove('lit'); await sleep(ms * 0.3);
+}
+
+async function playSeq() {
+  listening = false; $('board').classList.add('locked');
+  $('msg').textContent = 'Watch…';
+  await sleep(500);
+  const ms = Math.max(220, SPEEDS[speed] - seq.length * 12);
+  for (const i of seq) await flash(i, ms);
+  step = 0; listening = true; $('board').classList.remove('locked');
+  $('msg').textContent = 'Your turn!';
+}
+
+function start() {
+  if (playing) return;
+  playing = true; seq = []; $('score').textContent = 0; $('go').textContent = '…';
+  addStep();
+}
+function addStep() { seq.push(Math.floor(Math.random() * 4)); playSeq(); }
+
+async function press(i) {
+  if (!listening) return;
+  flash(i, 260);
+  if (i !== seq[step]) return gameOver();
+  step++;
+  if (step === seq.length) {
+    listening = false;
+    $('score').textContent = seq.length;
+    $('msg').textContent = ['Great!', 'Nice memory!', 'Keep going!', 'Wow!'][seq.length % 4];
+    await sleep(600); addStep();
+  }
+}
+
+function gameOver() {
+  listening = false; playing = false; $('board').classList.add('locked');
+  tone(140, 0.5, 'sawtooth', 0.12);
+  const score = seq.length - 1, best = store.get(bestKey(), 0);
+  if (score > best) { store.set(bestKey(), score); $('best').textContent = score; $('msg').textContent = `New best: ${score}!`; }
+  else $('msg').textContent = `Oops! You remembered ${score}. Try again!`;
+  $('go').textContent = 'Again';
+}
+
+pads.forEach((p, i) => p.addEventListener('click', () => press(i)));
+$('go').onclick = start;
+addEventListener('keydown', e => {
+  const i = ['1', '2', '3', '4'].indexOf(e.key);
+  if (i >= 0) press(i);
+  if (e.key === ' ' && !playing) { e.preventDefault(); start(); }
+});
+</script>
+</body>
+</html>

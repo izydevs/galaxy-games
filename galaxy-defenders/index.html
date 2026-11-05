@@ -1,0 +1,1782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galaxy Defenders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: canvas battlefield behind everything; HUD strip on top, command panel at the bottom; menus are centred consoles */
+  :root {
+    --void: #060918;
+    --panel: #0f1536;
+    --panel-2: #18204d;
+    --line: #2a3577;
+    --text: #e8ecff;
+    --muted: #9aa3d6;
+    --cyan: #39f3ff;
+    --magenta: #ff3df2;
+    --lime: #b6ff3b;
+    --amber: #ffb627;
+    --danger: #ff4d6d;
+    --a1: #E69F00; --a2: #56B4E9; --a3: #009E73; --a4: #CC79A7;
+    --display: "Orbitron", "Eurostile", "Arial Black", sans-serif;
+    --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --qsize: clamp(18px, 2.6vw, 24px);
+    --asize: clamp(15px, 2.1vw, 19px);
+    color-scheme: dark;
+  }
+  body.big-text { --qsize: clamp(22px, 3.4vw, 30px); --asize: clamp(18px, 2.7vw, 23px); }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--void); color: var(--text); font-family: var(--body); -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  button, input { font-family: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Menu screens ---------- */
+  .screen {
+    position: fixed; inset: 0; overflow-y: auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px));
+    background: radial-gradient(ellipse at 50% 0%, rgba(57,243,255,.08), transparent 60%), rgba(6,9,24,.55);
+  }
+  .console { width: 100%; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .logo { font-family: var(--display); font-weight: 900; text-align: center; line-height: .95; margin: 8px 0 0; font-size: clamp(38px, 9vw, 76px); letter-spacing: .02em; text-wrap: balance;
+    background: linear-gradient(180deg, #fff 0%, var(--cyan) 55%, #1a8fd6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(57,243,255,.35)); }
+  .logo-sub { font-family: var(--display); text-align: center; color: var(--magenta); letter-spacing: .5em; font-size: clamp(13px, 2.4vw, 18px); margin-top: -6px; text-shadow: 0 0 12px rgba(255,61,242,.6); }
+  h2 { font-family: var(--display); font-size: clamp(22px, 4.6vw, 32px); margin: 0; letter-spacing: .04em; text-wrap: balance; }
+  h3 { font-family: var(--display); font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; font-weight: 500; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card { background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .pilot { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; }
+  .lvl { grid-row: span 2; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 24px; border: 2px solid var(--cyan); box-shadow: 0 0 16px rgba(57,243,255,.4) inset; }
+  .rank { font-family: var(--display); font-size: 18px; }
+  .xpbar { height: 10px; border-radius: 99px; background: #0a0e27; overflow: hidden; border: 1px solid var(--line); }
+  .xpbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--lime)); }
+  .xptext { grid-column: 2; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 12px; min-height: 52px; padding: 12px 16px; font-weight: 600; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; transition: transform .08s, border-color .15s, background .15s; }
+  .btn:hover { border-color: var(--cyan); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: linear-gradient(180deg, #28e4f5, #129bd1); color: #031225; border: none; font-family: var(--display); font-weight: 700; letter-spacing: .06em; font-size: 18px; box-shadow: 0 0 24px rgba(57,243,255,.35); }
+  .btn.wide { grid-column: 1 / -1; min-height: 64px; font-size: 20px; }
+  .btn.ghost { background: transparent; }
+  .btn.danger { border-color: var(--danger); color: #ffd0d8; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn svg { width: 20px; height: 20px; flex: none; }
+  .note { color: var(--muted); font-size: 13px; text-align: center; margin: 0; }
+  .link { background: none; border: none; color: var(--muted); font-size: 14px; text-decoration: underline; padding: 8px; }
+
+  .choices { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .choice { text-align: left; border: 2px solid var(--line); background: var(--panel); color: var(--text); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-height: 64px; }
+  .choice b { font-family: var(--display); font-size: 15px; letter-spacing: .04em; }
+  .choice span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+  .choice[aria-pressed="true"] { border-color: var(--cyan); background: #10224a; box-shadow: 0 0 0 1px var(--cyan), 0 0 18px rgba(57,243,255,.25); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 2px solid var(--line); background: var(--panel); color: var(--text); border-radius: 99px; padding: 10px 16px; font-weight: 600; min-height: 44px; }
+  .chip[aria-pressed="true"] { border-color: var(--magenta); background: #2a1240; box-shadow: 0 0 14px rgba(255,61,242,.3); }
+  .chip:disabled { opacity: .4; }
+
+  /* Planet map */
+  .map { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: end; padding: 10px 0; }
+  .planet { display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: none; color: var(--text); padding: 6px 2px; border-radius: 12px; }
+  .planet .orb { width: clamp(46px, 13vw, 92px); aspect-ratio: 1; border-radius: 50%; position: relative; box-shadow: 0 0 24px var(--glow, #39f3ff66); max-width: 100%; }
+  .planet:nth-child(odd) { transform: translateY(-18px); }
+  .planet b { font-family: var(--display); font-size: clamp(10px, 2vw, 14px); text-align: center; }
+  .planet small { color: var(--muted); font-size: 12px; }
+  .planet[disabled] { opacity: .35; cursor: not-allowed; }
+  .planet .lock { position: absolute; inset: 0; display: grid; place-items: center; }
+  .planet .lock svg { width: 40%; height: 40%; }
+  .medal { font-family: var(--display); font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
+
+  .list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .ach { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
+  .ach .icon { width: 44px; height: 44px; border-radius: 10px; flex: none; display: grid; place-items: center; background: #0a0e27; color: var(--muted); }
+  .ach.got .icon { background: linear-gradient(135deg, var(--amber), #ff7a3d); color: #1a0d00; }
+  .ach .icon svg { width: 24px; height: 24px; }
+  .ach div { min-width: 0; }
+  .ach b { display: block; font-size: 15px; }
+  .ach span { color: var(--muted); font-size: 13px; }
+  .ach:not(.got) b { color: var(--muted); }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+  .swatch { width: 92px; border: 2px solid var(--line); background: var(--panel); color: var(--text); border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; }
+  .swatch i { width: 34px; height: 34px; border-radius: 50%; display: block; }
+  .swatch[aria-pressed="true"] { border-color: var(--cyan); box-shadow: 0 0 14px rgba(57,243,255,.35); }
+  .swatch:disabled { opacity: .45; cursor: not-allowed; }
+
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+  td.num { text-align: right; font-family: var(--display); }
+  .table-wrap { overflow-x: auto; }
+
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .toggle:last-child { border-bottom: none; }
+  .toggle label { font-weight: 600; }
+  .toggle small { display: block; color: var(--muted); font-weight: 400; font-size: 13px; }
+  .switch { appearance: none; width: 52px; height: 30px; border-radius: 99px; background: #0a0e27; border: 1px solid var(--line); position: relative; flex: none; cursor: pointer; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--muted); transition: left .15s; }
+  .switch:checked { background: #0f4a5c; border-color: var(--cyan); }
+  .switch:checked::after { left: 25px; background: var(--cyan); }
+
+  /* ---------- Game HUD ---------- */
+  .hud { position: fixed; top: 0; left: 0; right: 0; padding: calc(env(safe-area-inset-top, 0px) + 10px) max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  .hud-row { display: flex; align-items: center; gap: 10px; }
+  .hud .iconbtn { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: rgba(15,21,54,.85); color: var(--text); display: grid; place-items: center; flex: none; }
+  .hud .iconbtn svg { width: 20px; height: 20px; }
+  .hud-title { font-family: var(--display); font-size: 13px; letter-spacing: .1em; color: var(--muted); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hud-score { font-family: var(--display); font-weight: 700; font-size: clamp(18px, 3.4vw, 26px); font-variant-numeric: tabular-nums; }
+  .combo { font-family: var(--display); font-weight: 900; font-size: 15px; padding: 4px 10px; border-radius: 8px; background: var(--magenta); color: #1a0020; }
+  .bars { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; }
+  .bar { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: var(--display); letter-spacing: .08em; color: var(--muted); min-width: 0; }
+  .bar .track { flex: 1; height: 10px; border-radius: 99px; background: rgba(10,14,39,.85); border: 1px solid var(--line); overflow: hidden; min-width: 40px; }
+  .bar .fill { height: 100%; transition: width .25s; }
+  #shieldFill { background: linear-gradient(90deg, var(--cyan), #7af7ff); }
+  #shieldFill.low { background: var(--danger); }
+  #energyFill { background: linear-gradient(90deg, var(--amber), var(--lime)); }
+  .timer { font-family: var(--display); font-weight: 700; font-size: 18px; color: var(--amber); font-variant-numeric: tabular-nums; }
+  .streak { display: flex; gap: 3px; }
+  .streak i { width: 14px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); }
+  .streak i.on { background: var(--magenta); box-shadow: 0 0 6px var(--magenta); }
+
+  .panel { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 12px) max(12px, env(safe-area-inset-left, 0px)); background: linear-gradient(180deg, rgba(15,21,54,.92), rgba(6,9,24,.98)); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+  .panel-inner { width: 100%; max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  .qmeta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-family: var(--display); letter-spacing: .08em; }
+  .qmeta .tag { padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--cyan); }
+  .qtext { font-size: var(--qsize); font-weight: 700; line-height: 1.3; min-height: 1.3em; text-wrap: balance; }
+  .answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  @media (min-width: 900px) { .answers { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .ans { display: flex; align-items: stretch; gap: 0; min-height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 0; text-align: left; overflow: hidden; font-size: var(--asize); font-weight: 600; }
+  .ans .key { flex: none; width: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #071022; font-family: var(--display); font-weight: 900; font-size: 13px; }
+  .ans .key svg { width: 16px; height: 16px; }
+  .ans .lbl { padding: 8px 12px; display: flex; align-items: center; min-width: 0; overflow-wrap: anywhere; }
+  .ans:hover:not(:disabled) { border-color: var(--text); }
+  .ans:disabled { opacity: .25; }
+  .ans[data-i="0"] .key { background: var(--a1); }
+  .ans[data-i="1"] .key { background: var(--a2); }
+  .ans[data-i="2"] .key { background: var(--a3); }
+  .ans[data-i="3"] .key { background: var(--a4); }
+  .powers { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pow { flex: 1 1 0; min-width: 0; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: rgba(10,14,39,.8); color: var(--text); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; }
+  .pow svg { width: 18px; height: 18px; flex: none; }
+  .pow small { color: var(--amber); font-family: var(--display); font-size: 11px; }
+  .pow:disabled { opacity: .35; cursor: not-allowed; }
+  .pow .k { display: none; color: var(--muted); font-size: 11px; }
+  @media (hover: hover) and (pointer: fine) { .pow .k { display: inline; } }
+  .feedback { border-radius: 12px; padding: 12px 14px; border: 1px solid var(--danger); background: rgba(255,77,109,.12); display: flex; flex-direction: column; gap: 6px; }
+  .feedback b { font-family: var(--display); font-size: 14px; letter-spacing: .06em; color: #ff9fb1; }
+  .feedback .right { font-size: var(--asize); font-weight: 700; }
+  .feedback .why { color: #d7dcff; font-size: 15px; line-height: 1.45; }
+  .feedback .btn { align-self: flex-start; min-height: 44px; }
+
+  /* Overlays */
+  .modal { position: fixed; inset: 0; background: rgba(3,5,15,.78); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+  .modal .card { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+
+  /* Summary */
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .stat span { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+  .stat b { font-family: var(--display); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .rankbadge { align-self: center; font-family: var(--display); font-weight: 900; font-size: 26px; letter-spacing: .1em; padding: 10px 26px; border-radius: 14px; border: 2px solid currentColor; text-shadow: 0 0 14px currentColor; }
+  .r-Bronze { color: #e0965a; } .r-Silver { color: #d6e2f0; } .r-Gold { color: #ffd23f; } .r-Legend { color: var(--magenta); }
+  .newach { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .newach span { background: linear-gradient(135deg, var(--amber), #ff7a3d); color: #1a0d00; font-weight: 700; padding: 6px 12px; border-radius: 99px; font-size: 14px; }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .form-row input { flex: 1 1 160px; min-width: 0; min-height: 48px; border-radius: 10px; border: 1px solid var(--line); background: #0a0e27; color: var(--text); padding: 0 14px; font-size: 16px; }
+  .err { color: #ff9fb1; font-size: 14px; min-height: 1.2em; margin: 0; }
+  .center { text-align: center; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .row-btns .btn { flex: 1 1 160px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    body:not(.reduce-motion) .screen .console { animation: rise .35s ease-out both; }
+    @keyframes rise { from { transform: translateY(10px); opacity: .0; } to { transform: none; opacity: 1; } }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-hidden="true"></canvas>
+
+<!-- ================= TITLE ================= -->
+<section class="screen" id="s-title">
+  <div class="console">
+    <div>
+      <h1 class="logo">GALAXY<br>DEFENDERS</h1>
+      <div class="logo-sub">BRAIN BLITZ</div>
+    </div>
+    <div class="card pilot">
+      <div class="lvl" id="tLevel">1</div>
+      <div class="rank" id="tRank">Space Cadet</div>
+      <div class="xpbar"><i id="tXpBar" style="width:0%"></i></div>
+      <div class="xptext" id="tXpText">0 XP</div>
+    </div>
+    <div class="menu-grid">
+      <button class="btn primary wide" data-go="setup">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg> LAUNCH MISSION
+      </button>
+      <button class="btn" data-go="achievements">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4h8v5a4 4 0 0 1-8 0zM5 5h3M16 5h3M5 5a3 3 0 0 0 3 4M19 5a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg> Badges <span id="tBadges" style="color:var(--muted)"></span>
+      </button>
+      <button class="btn" data-go="hangar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l4 10-4 3-4-3z"/><path d="M8 12l-4 6 5-1M16 12l4 6-5-1"/></svg> Hangar
+      </button>
+      <button class="btn" data-go="leaderboard">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="9.5" y="6" width="5" height="15" rx="1"/><rect x="16" y="9" width="5" height="12" rx="1"/></svg> Leaderboard
+      </button>
+      <button class="btn" data-go="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg> Settings
+      </button>
+    </div>
+    <p class="note">No ads. No sign-up. Your progress stays on this device.</p>
+    <div class="center"><button class="link" data-home>All games</button></div>
+  </div>
+</section>
+
+<!-- ================= SETUP ================= -->
+<section class="screen" id="s-setup" hidden>
+  <div class="console">
+    <div class="topbar"><h2>Mission Setup</h2><button class="btn ghost" data-go="title">Back</button></div>
+    <div class="card">
+      <h3>1 · Your tier</h3>
+      <div class="choices" id="tierChoices">
+        <button class="choice" data-tier="cadet"><b>CADET</b><span>Ages 9–11 · times tables, fractions, capitals, word meanings</span></button>
+        <button class="choice" data-tier="pilot"><b>PILOT</b><span>Ages 12–13 · equations, percentages, cells, grammar</span></button>
+        <button class="choice" data-tier="commander"><b>COMMANDER</b><span>Ages 14–15 · algebra, powers, chemistry, physics, logic</span></button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>2 · Subject</h3>
+      <div class="chips" id="subjectChips">
+        <button class="chip" data-subject="math">Math</button>
+        <button class="chip" data-subject="science">Science</button>
+        <button class="chip" data-subject="geography">Geography</button>
+        <button class="chip" data-subject="english">English</button>
+        <button class="chip" data-subject="logic">Logic</button>
+        <button class="chip" data-subject="mixed">Mixed Mode</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>3 · Mode</h3>
+      <div class="choices" id="modeChoices">
+        <button class="choice" data-mode="campaign"><b>CAMPAIGN</b><span>Defend 5 planets. 5 waves each, boss on wave 5.</span></button>
+        <button class="choice" data-mode="time"><b>TIME ATTACK</b><span>As many right answers as you can in 60 seconds.</span></button>
+        <button class="choice" data-mode="practice"><b>PRACTICE</b><span>No timer, no damage. Learn at your own pace.</span></button>
+        <button class="choice" data-mode="daily"><b>DAILY CHALLENGE</b><span id="dailyDesc">10 mixed questions, the same for everyone today.</span></button>
+      </div>
+    </div>
+    <button class="btn primary wide" id="launchBtn">LAUNCH</button>
+  </div>
+</section>
+
+<!-- ================= PLANET MAP ================= -->
+<section class="screen" id="s-map" hidden>
+  <div class="console">
+    <div class="topbar"><h2>Star Map</h2><button class="btn ghost" data-go="setup">Back</button></div>
+    <p class="note" id="mapInfo" style="text-align:left">Clear a planet to unlock the next one.</p>
+    <div class="card"><div class="map" id="map"></div></div>
+  </div>
+</section>
+
+<!-- ================= SUMMARY ================= -->
+<section class="screen" id="s-summary" hidden>
+  <div class="console">
+    <div class="center"><h2 id="sumTitle">Planet saved!</h2><p class="note" id="sumSub" style="margin-top:6px"></p></div>
+    <div class="rankbadge" id="sumRank">GOLD</div>
+    <div class="stats">
+      <div class="stat"><span>Score</span><b id="sumScore">0</b></div>
+      <div class="stat"><span>Accuracy</span><b id="sumAcc">0%</b></div>
+      <div class="stat"><span>Best streak</span><b id="sumStreak">0</b></div>
+      <div class="stat"><span>Time</span><b id="sumTime">0:00</b></div>
+    </div>
+    <div class="card pilot">
+      <div class="lvl" id="sLevel">1</div>
+      <div class="rank" id="sRank">Space Cadet</div>
+      <div class="xpbar"><i id="sXpBar" style="width:0%"></i></div>
+      <div class="xptext" id="sXpText">+0 XP</div>
+    </div>
+    <div class="card" id="sumAchCard" hidden>
+      <h3 class="center">New badges</h3>
+      <div class="newach" id="sumAch"></div>
+    </div>
+    <form class="card" id="lbForm" hidden>
+      <h3>Top 10 score! Enter a nickname</h3>
+      <div class="form-row">
+        <input id="nick" maxlength="12" autocomplete="off" placeholder="Nickname (letters and numbers)" aria-label="Nickname">
+        <button class="btn primary" type="submit">Save</button>
+      </div>
+      <p class="err" id="nickErr"></p>
+    </form>
+    <div class="row-btns">
+      <button class="btn primary" id="nextPlanetBtn" hidden>NEXT PLANET</button>
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn" data-go="title">Main menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ACHIEVEMENTS ================= -->
+<section class="screen" id="s-achievements" hidden>
+  <div class="console">
+    <div class="topbar"><h2>Badges</h2><button class="btn ghost" data-go="title">Back</button></div>
+    <div class="list" id="achList"></div>
+  </div>
+</section>
+
+<!-- ================= HANGAR ================= -->
+<section class="screen" id="s-hangar" hidden>
+  <div class="console">
+    <div class="topbar"><h2>Hangar</h2><button class="btn ghost" data-go="title">Back</button></div>
+    <p class="note" style="text-align:left">Earn XP to unlock new colours. Your level: <b id="hLevel">1</b></p>
+    <div class="card"><h3>Ship colour</h3><div class="swatches" id="shipSw"></div></div>
+    <div class="card"><h3>Laser colour</h3><div class="swatches" id="laserSw"></div></div>
+  </div>
+</section>
+
+<!-- ================= LEADERBOARD ================= -->
+<section class="screen" id="s-leaderboard" hidden>
+  <div class="console">
+    <div class="topbar"><h2>Leaderboard</h2><button class="btn ghost" data-go="title">Back</button></div>
+    <div class="card table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Pilot</th><th>Mode</th><th>Tier</th><th style="text-align:right">Score</th></tr></thead>
+        <tbody id="lbBody"></tbody>
+      </table>
+    </div>
+    <p class="note">Scores are saved on this device only.</p>
+  </div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section class="screen" id="s-settings" hidden>
+  <div class="console">
+    <div class="topbar"><h2>Settings</h2><button class="btn ghost" data-go="title">Back</button></div>
+    <div class="card">
+      <div class="toggle"><label for="setMusic">Music<small>Synth soundtrack during missions</small></label><input type="checkbox" class="switch" id="setMusic"></div>
+      <div class="toggle"><label for="setSfx">Sound effects<small>Lasers, hits and alerts</small></label><input type="checkbox" class="switch" id="setSfx"></div>
+      <div class="toggle"><label for="setBig">Larger text<small>Bigger questions and answers</small></label><input type="checkbox" class="switch" id="setBig"></div>
+      <div class="toggle"><label for="setMotion">Reduce motion<small>No screen shake, fewer particles</small></label><input type="checkbox" class="switch" id="setMotion"></div>
+    </div>
+    <div class="card">
+      <h3>Keyboard</h3>
+      <p style="margin:0;color:var(--muted);line-height:1.6">1–4 answer · P pause · M mute · F freeze ray · H 50/50 · S shield boost · Enter continue</p>
+    </div>
+    <button class="btn danger" id="resetBtn">Reset all progress</button>
+  </div>
+</section>
+
+<!-- ================= GAME HUD ================= -->
+<div id="g-hud" class="hud" hidden>
+  <div class="hud-row">
+    <button class="iconbtn" id="pauseBtn" aria-label="Pause (P)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <div class="hud-title" id="hudTitle">TERRA NOVA · WAVE 1/5</div>
+    <span class="combo" id="combo" hidden>x2</span>
+    <div class="hud-score" id="hudScore">0</div>
+  </div>
+  <div class="bars">
+    <div class="bar" id="shieldBar">SHIELD <div class="track"><div class="fill" id="shieldFill" style="width:100%"></div></div></div>
+    <div class="bar">ENERGY <div class="track"><div class="fill" id="energyFill" style="width:30%"></div></div></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="streak" id="streakMeter" aria-label="Streak"></div>
+      <div class="timer" id="timer" hidden>60</div>
+    </div>
+  </div>
+</div>
+
+<div id="g-panel" class="panel" hidden>
+  <div class="panel-inner">
+    <div class="qmeta"><span class="tag" id="qSubject">MATH</span><span id="qInfo"></span></div>
+    <div class="qtext" id="qText" aria-live="polite">Get ready…</div>
+    <div class="answers" id="answers"></div>
+    <div class="feedback" id="feedback" hidden>
+      <b id="fbTitle">NOT QUITE</b>
+      <div class="right" id="fbRight"></div>
+      <div class="why" id="fbWhy"></div>
+      <button class="btn primary" id="fbBtn">Continue (Enter)</button>
+    </div>
+    <div class="powers">
+      <button class="pow" id="pFreeze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17"/></svg>Freeze <small>30</small><span class="k">F</span></button>
+      <button class="pow" id="pHalf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /></svg>50/50 <small>20</small><span class="k">H</span></button>
+      <button class="pow" id="pShield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Shield <small>40</small><span class="k">S</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Pause -->
+<div class="modal" id="pauseModal" hidden>
+  <div class="card">
+    <h2>Paused</h2>
+    <button class="btn primary" id="resumeBtn">Resume</button>
+    <button class="btn" id="restartBtn">Restart</button>
+    <button class="btn" id="quitBtn">End mission</button>
+    <p class="note">Press P to resume.</p>
+  </div>
+</div>
+
+<!-- Reset confirm -->
+<div class="modal" id="resetModal" hidden>
+  <div class="card">
+    <h2>Reset progress?</h2>
+    <p style="margin:0;color:var(--muted)">This deletes your XP, badges, unlocked planets, colours and leaderboard on this device. It can't be undone.</p>
+    <button class="btn danger" id="resetYes">Yes, reset everything</button>
+    <button class="btn" id="resetNo">Cancel</button>
+  </div>
+</div>
+
+<script>
+/* =================================================================
+   GALAXY DEFENDERS: BRAIN BLITZ — ages 9–15
+   Tune the game in CONFIG. Add questions in the QUESTION BANK below.
+   ================================================================= */
+const CONFIG = {
+  wavesPerPlanet: 5,
+  fallTime: { cadet: 20, pilot: 18, commander: 16 }, // seconds for an asteroid to reach the planet (wave 1, planet 1)
+  fallStepWave: 1.0,        // each wave is this many seconds faster
+  fallStepPlanet: 1.0,      // each planet is this many seconds faster
+  minFallTime: 8,
+  spawnGap: 2.5,            // seconds between asteroids
+  waveSize: (planet, wave) => Math.min(9, 2 + wave + planet),
+  bossHits: 3,              // correct answers in a row to beat a boss
+  damageImpact: 20,         // shield lost when an asteroid hits
+  damageWrong: 15,          // shield lost on a wrong answer
+  energyPerCorrect: 12,
+  startEnergy: 30,
+  pointsPerCorrect: 100,
+  combos: [[10, 5], [6, 3], [3, 2]], // [streak needed, multiplier]
+  power: { freeze: { cost: 30, seconds: 5 }, half: { cost: 20 }, shield: { cost: 40, amount: 30 } },
+  timeAttack: { seconds: 60, fallTime: 10, gap: 1.2 },
+  daily: { questions: 10, fallTime: 18 },
+  practice: { fallTime: 14 },
+  xpPerCorrect: 10,
+  xpPlanetClear: 150,
+  maxLevel: 50,
+};
+
+const PLANETS = [
+  { name: 'Terra Nova', color: '#3ec6ff', dark: '#0b3d74' },
+  { name: 'Ember',      color: '#ff7a3d', dark: '#6b1d08' },
+  { name: 'Glacia',     color: '#bdefff', dark: '#3b6a8f' },
+  { name: 'Verdant',    color: '#6bdc5c', dark: '#174d22' },
+  { name: 'Nebulon',    color: '#c46bff', dark: '#3b0f66' },
+];
+const SHIPS = [
+  { id: 'cyan', name: 'Cyan', color: '#39f3ff', level: 1 },
+  { id: 'magenta', name: 'Magenta', color: '#ff3df2', level: 3 },
+  { id: 'lime', name: 'Lime', color: '#b6ff3b', level: 6 },
+  { id: 'amber', name: 'Amber', color: '#ffb627', level: 10 },
+  { id: 'pearl', name: 'Pearl', color: '#f4f1ff', level: 15 },
+  { id: 'crimson', name: 'Crimson', color: '#ff4d6d', level: 20 },
+  { id: 'aurora', name: 'Aurora', color: 'rainbow', level: 30 },
+];
+const LASERS = [
+  { id: 'cyan', name: 'Cyan', color: '#39f3ff', level: 1 },
+  { id: 'lime', name: 'Lime', color: '#b6ff3b', level: 4 },
+  { id: 'magenta', name: 'Magenta', color: '#ff3df2', level: 8 },
+  { id: 'gold', name: 'Gold', color: '#ffd23f', level: 12 },
+  { id: 'white', name: 'White', color: '#ffffff', level: 18 },
+  { id: 'rainbow', name: 'Rainbow', color: 'rainbow', level: 25 },
+];
+const RANKS = [[1, 'Space Cadet'], [5, 'Ensign'], [10, 'Lieutenant'], [15, 'Pilot'], [20, 'Captain'], [30, 'Commander'], [40, 'Admiral'], [50, 'Star Admiral']];
+const SUBJECTS = ['math', 'science', 'geography', 'english', 'logic'];
+const SUBJECT_NAMES = { math: 'Math', science: 'Science', geography: 'Geography', english: 'English', logic: 'Logic', mixed: 'Mixed' };
+const TIER_NAMES = { cadet: 'Cadet', pilot: 'Pilot', commander: 'Commander' };
+const MODE_NAMES = { campaign: 'Campaign', time: 'Time Attack', practice: 'Practice', daily: 'Daily' };
+
+/* =================================================================
+   QUESTION BANK
+   One question per line:  Question|Right answer|Wrong 1|Wrong 2|Wrong 3|Why
+   Math and number sequences are generated automatically.
+   ================================================================= */
+const BANK_TEXT = {
+science: {
+cadet: `
+What do plants take in from the air to make food?|Carbon dioxide|Oxygen|Nitrogen|Helium|Plants use carbon dioxide, water and sunlight to make sugar. This is called photosynthesis.
+What is the closest star to Earth?|The Sun|Sirius|Polaris|Alpha Centauri|The Sun is a star, about 150 million km away.
+Which planet is known as the Red Planet?|Mars|Venus|Jupiter|Mercury|Mars looks red because of iron oxide (rust) in its soil.
+At what temperature does water boil at sea level?|100 °C|50 °C|0 °C|200 °C|Water boils at 100 °C (212 °F) at sea level.
+Which part of the body pumps blood?|Heart|Lungs|Liver|Brain|The heart is a muscle that pumps blood around the body.
+What gas do humans need to breathe in to live?|Oxygen|Carbon dioxide|Hydrogen|Helium|Our cells use oxygen to release energy from food.
+How many legs does an insect have?|6|8|4|10|All insects have 6 legs. Spiders have 8 and are not insects.
+What force pulls objects toward Earth?|Gravity|Magnetism|Friction|Wind|Gravity pulls masses toward each other, so Earth pulls things down.
+What is frozen water called?|Ice|Steam|Vapour|Dew|Water freezes into ice at 0 °C.
+Which planet is the largest in our Solar System?|Jupiter|Saturn|Earth|Neptune|Jupiter is so big that more than 1,000 Earths could fit inside it.
+What do bees make from nectar?|Honey|Milk|Silk|Juice|Bees turn flower nectar into honey to feed their colony.
+What is the hardest natural material?|Diamond|Gold|Iron|Granite|Diamond is carbon atoms locked in a very strong structure.
+What do we call animals that eat only plants?|Herbivores|Carnivores|Omnivores|Predators|Herbivores eat plants, carnivores eat meat, omnivores eat both.
+Which organ do we use to breathe?|Lungs|Stomach|Kidneys|Heart|Lungs take in oxygen and get rid of carbon dioxide.
+What does a caterpillar turn into?|A butterfly or moth|A beetle|A spider|A bee|Caterpillars change inside a chrysalis or cocoon. This is metamorphosis.
+How long does Earth take to orbit the Sun?|About 365 days|About 24 hours|About 30 days|About 10 years|One orbit is one year, about 365¼ days.
+What causes day and night?|Earth spinning|The Moon moving|Clouds|The Sun switching off|Earth spins once about every 24 hours, so each side faces the Sun in turn.
+Which of these does a magnet attract?|Iron|Wood|Plastic|Glass|Magnets attract iron, nickel and cobalt.
+What is the largest organ of the human body?|Skin|Liver|Brain|Heart|Your skin covers and protects your whole body.
+What is a baby frog called?|Tadpole|Cub|Kit|Calf|Frogs hatch as tadpoles that live in water and later grow legs.
+Which planet is closest to the Sun?|Mercury|Venus|Mars|Earth|Mercury is the closest and the smallest planet.
+What is a scientist who studies rocks called?|Geologist|Biologist|Astronomer|Chemist|Geologists study rocks, minerals and how Earth changes.
+Which is faster: light or sound?|Light|Sound|They are equal|It changes every day|Light is far faster. That's why you see lightning before you hear thunder.
+How many bones are in an adult human body?|206|106|306|26|Adults have 206 bones. Babies have more, which later join together.
+What is the main gas in Earth's air?|Nitrogen|Oxygen|Carbon dioxide|Hydrogen|About 78% of air is nitrogen and about 21% is oxygen.
+Which part of a plant soaks up water from the soil?|Roots|Leaves|Flowers|Petals|Roots take in water and minerals and hold the plant in place.
+Which of these animals is a mammal?|Dolphin|Shark|Salmon|Octopus|Dolphins breathe air, are warm-blooded and feed their babies milk.
+What is the path of a planet around the Sun called?|Orbit|Axis|Comet|Equator|An orbit is the curved path one object takes around another.
+What turns liquid water into water vapour?|Heating (evaporation)|Freezing|Shaking|Adding salt|Heat gives water molecules enough energy to escape as a gas.
+Which sense uses taste buds?|Taste|Smell|Hearing|Sight|Taste buds on your tongue detect sweet, salty, sour, bitter and umami.
+`,
+pilot: `
+What is the basic unit of all living things?|Cell|Atom|Organ|Tissue|All living things are made of one or more cells.
+Which part of a cell holds its DNA?|Nucleus|Cell wall|Cytoplasm|Membrane|In plant and animal cells, DNA is stored in the nucleus.
+What are the three common states of matter?|Solid, liquid, gas|Hot, warm, cold|Metal, wood, plastic|Rock, water, air|Matter is usually solid, liquid or gas. Plasma is a fourth state.
+What is the change from gas to liquid called?|Condensation|Evaporation|Melting|Freezing|Condensation happens when a gas cools, like drops on a cold glass.
+What do plant cells have that animal cells don't?|Cell wall and chloroplasts|Nucleus|Cell membrane|Mitochondria|Plant cells have a rigid cell wall and chloroplasts for photosynthesis.
+Which part of a cell releases energy from food?|Mitochondria|Nucleus|Ribosome|Vacuole|Mitochondria carry out respiration to release energy.
+What is the chemical formula for water?|H₂O|HO₂|CO₂|O₂H|Each water molecule has 2 hydrogen atoms and 1 oxygen atom.
+What unit is force measured in?|Newtons|Joules|Watts|Metres|Force is measured in newtons (N), named after Isaac Newton.
+Which planet has the most famous rings?|Saturn|Mars|Mercury|Venus|Saturn's bright rings are made of ice and rock.
+Roughly how fast does light travel?|300,000 km per second|300 km per second|3,000 km per hour|30 km per second|Light travels about 300,000 km every second.
+What does a food chain always start with?|A producer, like a plant|A predator|A decomposer|A herbivore|Producers make food from sunlight and feed the rest of the chain.
+What is the pH of pure water?|7|0|14|1|pH 7 is neutral. Lower is acidic, higher is alkaline.
+What carries oxygen in the blood?|Red blood cells|White blood cells|Platelets|Nerves|Red blood cells contain haemoglobin, which carries oxygen.
+Which gas is released during photosynthesis?|Oxygen|Carbon dioxide|Nitrogen|Methane|Plants release oxygen as a by-product of photosynthesis.
+Which type of rock forms from cooled lava or magma?|Igneous|Sedimentary|Metamorphic|Fossil|Igneous rocks like basalt and granite form when molten rock cools.
+What is the centre of an atom called?|Nucleus|Electron|Shell|Orbit|The nucleus holds protons and neutrons. Electrons move around it.
+Which particle has a negative charge?|Electron|Proton|Neutron|Nucleus|Electrons are negative, protons positive, neutrons have no charge.
+What causes the seasons on Earth?|The tilt of Earth's axis|Distance from the Moon|The Sun getting hotter|Clouds|Earth's 23.5° tilt changes how directly sunlight hits each half of the planet.
+What type of energy does a moving car have?|Kinetic|Potential|Nuclear|Sound only|Kinetic energy is the energy of movement.
+Which organ filters waste from the blood?|Kidneys|Lungs|Stomach|Heart|Kidneys filter blood and make urine.
+What is the freezing point of water in °F?|32 °F|0 °F|100 °F|212 °F|Water freezes at 0 °C, which is 32 °F.
+How long does sunlight take to reach Earth?|About 8 minutes|About 8 seconds|About 8 hours|About 8 days|Sunlight crosses about 150 million km in roughly 8 minutes 20 seconds.
+What is an animal with a backbone called?|Vertebrate|Invertebrate|Arthropod|Mollusc|Vertebrates include fish, amphibians, reptiles, birds and mammals.
+What is the main job of white blood cells?|Fight infection|Carry oxygen|Clot blood|Digest food|White blood cells defend the body against germs.
+Which of these is a renewable energy source?|Wind|Coal|Oil|Natural gas|Wind won't run out. Fossil fuels take millions of years to form.
+Where does moonlight come from?|Reflected sunlight|Fire on the Moon|Distant stars|Moon electricity|The Moon makes no light of its own; it reflects the Sun's light.
+Which simple machine is a ramp?|Inclined plane|Lever|Pulley|Wheel and axle|A ramp lets you raise a load with less force over a longer distance.
+What do decomposers do?|Break down dead material|Make food from sunlight|Hunt other animals|Pollinate flowers|Fungi and bacteria break down dead things and return nutrients to the soil.
+What is the boiling point of water in kelvin?|373 K|100 K|273 K|473 K|Kelvin = °C + 273, so 100 °C is about 373 K.
+Which gas makes up most of the Sun?|Hydrogen|Oxygen|Carbon|Iron|The Sun is about 73% hydrogen, which it fuses into helium.
+`,
+commander: `
+What is the chemical symbol for sodium?|Na|So|Sd|S|Na comes from its Latin name, natrium.
+What is the atomic number of carbon?|6|12|8|14|Carbon has 6 protons. 12 is its mass number.
+Which equation is Newton's second law?|F = m × a|E = mc²|V = I × R|p = m × v|Force equals mass times acceleration.
+If V = 12 V and R = 4 Ω, what is the current I?|3 A|48 A|8 A|16 A|Ohm's law: I = V ÷ R = 12 ÷ 4 = 3 amps.
+Which type of bond shares electrons?|Covalent|Ionic|Metallic|Magnetic|In a covalent bond, atoms share pairs of electrons.
+Which gas turns limewater cloudy?|Carbon dioxide|Oxygen|Hydrogen|Nitrogen|CO₂ reacts with limewater to form chalky calcium carbonate.
+What is the SI unit of energy?|Joule|Newton|Watt|Pascal|Energy is measured in joules. A watt is one joule per second.
+Speed equals distance divided by what?|Time|Mass|Force|Acceleration|Speed = distance ÷ time.
+Photosynthesis makes oxygen and which other product?|Glucose|Protein|Salt|Carbon dioxide|6CO₂ + 6H₂O → C₆H₁₂O₆ (glucose) + 6O₂.
+How many chromosomes are in a typical human body cell?|46|23|44|48|Humans have 23 pairs, which is 46. Egg and sperm cells have 23.
+Who proposed evolution by natural selection?|Charles Darwin|Isaac Newton|Marie Curie|Albert Einstein|Darwin published On the Origin of Species in 1859.
+What is the reaction of an acid with a base called?|Neutralisation|Combustion|Fermentation|Distillation|An acid and a base react to make a salt and water.
+Which element has the symbol Fe?|Iron|Fluorine|Lead|Fermium|Fe comes from the Latin ferrum.
+Roughly what is the acceleration due to gravity on Earth?|9.8 m/s²|1 m/s²|98 m/s²|3 m/s²|A falling object speeds up by about 9.8 m/s every second.
+Which part of the brain mainly controls balance?|Cerebellum|Cerebrum|Hypothalamus|Spinal cord|The cerebellum coordinates movement and balance.
+Which waves can travel through a vacuum?|Light (electromagnetic) waves|Sound waves|Water waves|Seismic waves|EM waves need no medium. Sound needs particles to travel through.
+What does DNA stand for?|Deoxyribonucleic acid|Dinitrogen acid|Dual nucleus array|Deoxy nitric acid|DNA carries the genetic instructions of living things.
+Which group of the periodic table holds the noble gases?|Group 18 (0)|Group 1|Group 2|Group 17|Noble gases like helium and neon have full outer shells and rarely react.
+Power equals energy divided by what?|Time|Mass|Distance|Current|Power is how fast energy is transferred. 1 W = 1 J/s.
+What is the formula for density?|Mass ÷ volume|Volume ÷ mass|Mass × volume|Force ÷ area|Density = mass ÷ volume, for example in g/cm³.
+What is the half-life of a radioactive isotope?|Time for half its nuclei to decay|Half of its total life|Time to lose half its heat|Half the time it glows|After one half-life, half of the radioactive nuclei remain.
+Which blood vessels carry blood away from the heart?|Arteries|Veins|Capillaries|Valves|Arteries carry blood away from the heart; veins bring it back.
+Which part of a cell makes proteins?|Ribosome|Nucleus|Mitochondrion|Cell wall|Ribosomes join amino acids together to build proteins.
+What is the relative charge of a proton?|+1|−1|0|+2|Protons are positive, electrons negative, neutrons neutral.
+Which metal is liquid at room temperature?|Mercury|Iron|Aluminium|Copper|Mercury melts at about −39 °C.
+Momentum equals mass times what?|Velocity|Acceleration|Time|Height|p = m × v.
+What mainly causes the greenhouse effect?|Gases trapping heat|The ozone hole|Light from volcanoes|The Moon's gravity|Gases like CO₂ and methane absorb heat given off by Earth.
+Which mixture can be separated by filtering?|Sand in water|Salt dissolved in water|Air|Sugar dissolved in tea|Filtering traps solids that have not dissolved.
+What pH is a strong acid likely to have?|1|7|10|14|Strong acids have a very low pH, around 0–2.
+Which part of a plant cell carries out photosynthesis?|Chloroplast|Nucleus|Cell wall|Vacuole|Chloroplasts contain chlorophyll, which absorbs light.
+`},
+geography: {
+cadet: `
+What is the capital of France?|Paris|Lyon|Rome|Madrid|Paris is the capital and largest city of France.
+Which is the largest ocean?|Pacific|Atlantic|Indian|Arctic|The Pacific covers about a third of Earth's surface.
+How many continents are there?|7|5|6|9|Africa, Antarctica, Asia, Australia (Oceania), Europe, North America and South America.
+What is the capital of Japan?|Tokyo|Kyoto|Osaka|Beijing|Tokyo has been Japan's capital since 1868.
+Which continent is Egypt in?|Africa|Asia|Europe|South America|Egypt is in north-east Africa.
+What is the capital of India?|New Delhi|Mumbai|Kolkata|Bengaluru|New Delhi is the capital. Mumbai is the biggest financial city.
+Which is the longest river in Africa?|Nile|Congo|Niger|Amazon|The Nile flows about 6,650 km to the Mediterranean Sea.
+What is the capital of the United States?|Washington, D.C.|New York|Los Angeles|Chicago|Washington, D.C. has been the capital since 1800.
+Which is the coldest continent?|Antarctica|Europe|Asia|North America|Antarctica holds the record low of about −89 °C.
+Which country is shaped like a boot?|Italy|Spain|Greece|Norway|Italy's peninsula looks like a boot kicking the island of Sicily.
+What is the capital of the United Kingdom?|London|Manchester|Edinburgh|Dublin|London is the capital of the UK and of England.
+Which is the tallest mountain above sea level?|Mount Everest|K2|Kilimanjaro|Mont Blanc|Everest is about 8,849 m high, on the Nepal–China border.
+Which country is famous for wild kangaroos?|Australia|Brazil|Canada|Kenya|Kangaroos live wild in Australia and nearby New Guinea.
+What is the capital of Canada?|Ottawa|Toronto|Vancouver|Montreal|Ottawa is the capital. Toronto is the largest city.
+Which is the largest hot desert?|Sahara|Gobi|Kalahari|Thar|The Sahara covers much of North Africa.
+What is the capital of China?|Beijing|Shanghai|Hong Kong|Tokyo|Beijing is the capital of China.
+Which line divides Earth into northern and southern halves?|The Equator|The Prime Meridian|The Tropic of Cancer|The Arctic Circle|The Equator is at 0° latitude.
+Which is the largest country by area?|Russia|Canada|China|USA|Russia is so wide it spans 11 time zones.
+What is the capital of Germany?|Berlin|Munich|Frankfurt|Vienna|Berlin became the capital of reunited Germany in 1990.
+Which river flows through Egypt?|Nile|Amazon|Ganges|Danube|Most Egyptians live along the Nile.
+On which continent is Brazil?|South America|Africa|North America|Europe|Brazil is the largest country in South America.
+What is the capital of Australia?|Canberra|Sydney|Melbourne|Perth|Canberra was built as a compromise between Sydney and Melbourne.
+Which ocean lies between Europe and North America?|Atlantic|Pacific|Indian|Southern|The Atlantic separates the Americas from Europe and Africa.
+What is the capital of Italy?|Rome|Milan|Venice|Naples|Rome has been an important capital for over 2,000 years.
+Which country is home to the Taj Mahal?|India|Egypt|Turkey|Iran|The Taj Mahal is in Agra, India.
+What is the capital of Spain?|Madrid|Barcelona|Lisbon|Seville|Madrid is near the centre of Spain.
+Which is the smallest continent?|Australia (Oceania)|Europe|Antarctica|South America|Australia is the smallest continent by land area.
+What is the capital of Kenya?|Nairobi|Mombasa|Lagos|Cairo|Nairobi is Kenya's capital and largest city.
+Which country has the most people?|India|USA|Russia|Brazil|India passed China in 2023 as the country with the most people.
+What is the capital of Mexico?|Mexico City|Cancún|Guadalajara|Madrid|Mexico City sits high in a valley, about 2,240 m up.
+`,
+pilot: `
+What is the capital of Brazil?|Brasília|Rio de Janeiro|São Paulo|Buenos Aires|Brasília was built as the new capital in 1960.
+Which is the longest river in South America?|Amazon|Paraná|Orinoco|Nile|The Amazon also carries more water than any other river.
+What is the capital of Egypt?|Cairo|Alexandria|Giza|Luxor|Cairo sits on the River Nile.
+What are lines of latitude?|Imaginary lines running east–west|Lines running north–south|Time zone borders|Ocean currents|Latitude tells you how far north or south of the Equator you are.
+Which mountains form part of the border between Europe and Asia?|Ural Mountains|Alps|Andes|Rockies|The Urals run north to south through Russia.
+What is the capital of South Korea?|Seoul|Busan|Pyongyang|Tokyo|About half of South Koreans live in the Seoul area.
+Which is the largest island in the world?|Greenland|Australia|Madagascar|Borneo|Australia counts as a continent, so Greenland is the largest island.
+What is the capital of Argentina?|Buenos Aires|Santiago|Lima|Montevideo|Buenos Aires lies on the Río de la Plata.
+What is a delta?|Land built where a river meets the sea|A very tall waterfall|A desert valley|An underground lake|Rivers drop sediment as they slow down, building a delta.
+Which country is the city of Istanbul in?|Turkey|Greece|Egypt|Iran|Istanbul spans two continents, Europe and Asia.
+What is the capital of Nigeria?|Abuja|Lagos|Accra|Kano|Abuja replaced Lagos as the capital in 1991.
+Which very salty lake lies between Israel and Jordan?|Dead Sea|Red Sea|Black Sea|Caspian Sea|The Dead Sea is so salty that people float easily.
+What is the capital of Turkey?|Ankara|Istanbul|Izmir|Athens|Ankara is the capital; Istanbul is the biggest city.
+Which river flows through Paris?|Seine|Thames|Rhine|Danube|The Seine runs through the centre of Paris.
+Which country is the largest that lies in both Europe and Asia?|Russia|Turkey|Kazakhstan|Ukraine|Russia stretches from Eastern Europe across northern Asia.
+What is the capital of Thailand?|Bangkok|Phuket|Hanoi|Manila|Bangkok is Thailand's capital and largest city.
+Counting cold deserts, which is the largest desert?|Antarctica|Sahara|Arabian|Gobi|A desert is a place with very little rain or snow, and Antarctica gets very little.
+Which river flows through London?|Thames|Seine|Severn|Tyne|The Thames flows east through London to the North Sea.
+What is the capital of Russia?|Moscow|St Petersburg|Kyiv|Minsk|Moscow is Russia's capital.
+Which ocean is the Bay of Bengal part of?|Indian|Pacific|Atlantic|Arctic|The Bay of Bengal is the north-eastern part of the Indian Ocean.
+Which city is South Africa's executive capital?|Pretoria|Cape Town|Johannesburg|Durban|South Africa has three capitals; Pretoria is where the government's executive sits.
+Which is the longest mountain range on land?|Andes|Himalayas|Rockies|Alps|The Andes run about 7,000 km along South America.
+What is the capital of Vietnam?|Hanoi|Ho Chi Minh City|Bangkok|Phnom Penh|Hanoi is in the north; Ho Chi Minh City is the biggest city.
+What are lines of longitude?|Imaginary lines running north–south|Lines running east–west|Mountain ridges|Rivers|Longitude tells you how far east or west of the Prime Meridian you are.
+Which place does the Prime Meridian (0° longitude) pass through?|Greenwich, London|Paris|New York|Cairo|The Prime Meridian runs through Greenwich in London.
+What is the capital of Pakistan?|Islamabad|Karachi|Lahore|Kabul|Islamabad became the capital in the 1960s.
+Which is the largest lake in Africa?|Lake Victoria|Lake Chad|Lake Tanganyika|Lake Malawi|Lake Victoria is shared by Kenya, Uganda and Tanzania.
+What is the capital of Saudi Arabia?|Riyadh|Jeddah|Mecca|Dubai|Riyadh is the capital. Dubai is in the United Arab Emirates.
+Which country is called the Land of the Rising Sun?|Japan|China|Thailand|Korea|Japan's name, Nihon, means "origin of the sun".
+What is the capital of Greece?|Athens|Sparta|Thessaloniki|Rome|Athens is one of the world's oldest cities.
+`,
+commander: `
+What is the capital of New Zealand?|Wellington|Auckland|Christchurch|Sydney|Wellington is the capital. Auckland is the largest city.
+Which country has the longest coastline?|Canada|Russia|Australia|Indonesia|Canada's coastline is over 200,000 km long.
+Which city is the seat of the Swiss government?|Bern|Zurich|Geneva|Basel|Bern is Switzerland's federal city.
+Which strait separates Europe and Africa?|Strait of Gibraltar|Bosporus|Strait of Hormuz|Bering Strait|At its narrowest, it is about 14 km wide.
+What is the capital of Morocco?|Rabat|Casablanca|Marrakesh|Tunis|Rabat is the capital; Casablanca is the largest city.
+Which is the longest river in Asia?|Yangtze|Ganges|Mekong|Indus|The Yangtze flows about 6,300 km through China.
+What is the deepest known point in the ocean?|Challenger Deep, Mariana Trench|Puerto Rico Trench|Java Trench|Tonga Trench|It is about 10,900 m deep in the western Pacific.
+What is the capital of Myanmar?|Naypyidaw|Yangon|Mandalay|Bangkok|Naypyidaw replaced Yangon as the capital in 2005.
+Which country has the most lakes?|Canada|Finland|Russia|USA|Canada has more lakes than the rest of the world combined.
+What is the capital of Kazakhstan?|Astana|Almaty|Tashkent|Bishkek|Astana is the capital; Almaty is the old capital and the largest city.
+What mainly causes the tides?|The Moon's gravity|Wind|Earthquakes|Earth's magnetism|The Moon, and to a lesser extent the Sun, pulls on Earth's oceans.
+Which is the driest non-polar desert?|Atacama|Sahara|Gobi|Mojave|Some weather stations in Chile's Atacama have barely ever recorded rain.
+What is the capital of Ethiopia?|Addis Ababa|Nairobi|Asmara|Khartoum|Addis Ababa also hosts the African Union headquarters.
+What is the Ring of Fire?|A belt of volcanoes and earthquakes around the Pacific|A desert in Australia|A heat wave zone in India|A circle of islands near Africa|About 75% of the world's volcanoes are around the Pacific.
+Which two countries share the longest land border?|Canada and USA|Russia and China|India and Bangladesh|Argentina and Chile|The Canada–US border is about 8,900 km long.
+What is the capital of Cambodia?|Phnom Penh|Siem Reap|Vientiane|Hanoi|Phnom Penh sits where the Mekong and Tonlé Sap rivers meet.
+What is a fjord?|A narrow sea inlet carved by glaciers|A volcanic island|A dry riverbed|A coral reef|Norway is famous for its deep, steep-sided fjords.
+What is the capital of Peru?|Lima|Cusco|Quito|Bogotá|Lima lies on the Pacific coast.
+Which country is completely surrounded by South Africa?|Lesotho|Eswatini|Botswana|Namibia|Lesotho is an enclave inside South Africa.
+What does the Tropic of Cancer mark?|The farthest north the Sun is directly overhead|The Equator|The Arctic Circle|The edge of Asia|At about 23.4° N, the Sun is overhead at noon on the June solstice.
+What is the capital of Colombia?|Bogotá|Medellín|Caracas|Quito|Bogotá sits about 2,600 m above sea level.
+Which country's capital is Lisbon?|Portugal|Spain|Brazil|Italy|Lisbon is Portugal's capital, on the Atlantic coast.
+What is the capital of Iran?|Tehran|Baghdad|Isfahan|Kabul|Tehran sits at the foot of the Alborz mountains.
+Which river forms much of the border between the USA and Mexico?|Rio Grande|Colorado|Mississippi|Missouri|In Mexico it is called the Río Bravo.
+What is the capital of Bangladesh?|Dhaka|Chittagong|Kolkata|Kathmandu|Dhaka is one of the most crowded cities on Earth.
+Which is the highest waterfall in the world?|Angel Falls|Niagara Falls|Victoria Falls|Iguazu Falls|Angel Falls in Venezuela drops about 979 m.
+What is the capital of Poland?|Warsaw|Kraków|Prague|Budapest|Warsaw lies on the Vistula River.
+The International Date Line lies roughly opposite which line?|The Prime Meridian|The Equator|The Tropic of Capricorn|The Arctic Circle|It is near 180° longitude, halfway round the world from 0°.
+What is the capital of Chile?|Santiago|Valparaíso|Lima|La Paz|Santiago lies in a valley below the Andes.
+What formed the Himalayas?|The Indian plate colliding with the Eurasian plate|A single huge volcano|Glaciers piling up rock|A meteorite impact|India is still pushing north, so the Himalayas are still rising.
+`},
+english: {
+cadet: `
+What is the plural of "child"?|children|childs|childes|childrens|"Child" has an irregular plural: children.
+Which word is a noun?|apple|run|quickly|blue|A noun names a person, place or thing.
+What is the opposite of "ancient"?|modern|old|huge|silent|Ancient means very old; modern means new or up to date.
+Which word is a verb?|jump|happy|table|slowly|A verb is an action or doing word.
+Which word is a synonym for "big"?|large|tiny|narrow|short|Synonyms are words with similar meanings.
+Which word is spelled correctly?|because|becuase|becaus|beacause|Big Elephants Can Always Understand Small Elephants: b-e-c-a-u-s-e.
+What is the past tense of "go"?|went|goed|gone|going|"Go" is irregular: go, went, gone.
+Which word is an adjective?|shiny|shine|quickly|ran|Adjectives describe nouns, like a shiny coin.
+What is the opposite of "generous"?|selfish|kind|friendly|giving|A generous person shares; a selfish person keeps things.
+Which question is punctuated correctly?|Where are you going?|Where are you going.|Where are you going!|Where are you going,|Questions end with a question mark.
+What is the plural of "mouse"?|mice|mouses|meese|mices|Mouse to mice is an irregular plural.
+What does "enormous" mean?|very big|very small|very fast|very quiet|Enormous means huge.
+Which word is an adverb?|quickly|quick|quicken|quickness|Adverbs often end in -ly and tell how something is done.
+Which is a compound word?|sunflower|flower|sunny|flowering|A compound word joins two words: sun + flower.
+What is the past tense of "eat"?|ate|eated|eaten|eats|eat, ate, eaten.
+Which word rhymes with "light"?|kite|lit|late|lift|Light and kite both end with the same "ite" sound.
+Which word is a synonym for "happy"?|joyful|angry|tired|gloomy|Joyful means full of happiness.
+Which word is a pronoun?|she|Sarah|girl|sing|Pronouns replace nouns: she, he, they, it.
+What is the opposite of "brave"?|cowardly|bold|strong|heroic|Brave means not afraid; cowardly means easily scared.
+Which word should always start with a capital letter?|london|city|river|tree|Names of places are proper nouns and need capitals: London.
+What is the plural of "box"?|boxes|boxs|boxen|boxies|Words ending in x add -es.
+Which word means "a place where you borrow books"?|library|laboratory|bakery|factory|A library lends books to people.
+Which is the correct spelling?|friend|freind|frend|friand|A friend is there till the END: fri-END.
+What is the opposite of "float"?|sink|swim|fly|drift|Things that float stay on top of water; things that sink go down.
+Which word is a conjunction?|and|run|blue|under|Conjunctions join words or ideas: and, but, because.
+What is the plural of "baby"?|babies|babys|babyes|babis|Consonant + y: change y to i and add -es.
+What does "fragile" mean?|easily broken|very heavy|very loud|brightly coloured|Fragile things need careful handling.
+Which word is a preposition?|under|jump|green|loudly|Prepositions show position: under, over, beside.
+What is the past tense of "swim"?|swam|swimmed|swum|swimed|swim, swam, swum.
+Which word sounds the same as "there"?|their|three|where|then|Homophones sound alike but mean different things: there, their, they're.
+`,
+pilot: `
+Which sentence uses "their" correctly?|They lost their keys.|Their going home.|Put it over their.|Their is a cat.|"Their" shows that something belongs to them.
+What is a simile?|A comparison using "like" or "as"|A word that sounds like its meaning|An exaggeration|A question with no answer|"Brave as a lion" is a simile.
+The word "buzz" is an example of what?|Onomatopoeia|Alliteration|Metaphor|Simile|Onomatopoeia words sound like the thing they describe.
+Which sentence is a metaphor?|The classroom was a zoo.|She ran like the wind.|He is as tall as a tree.|The dog barked loudly.|A metaphor says something IS something else.
+Which word is a synonym for "reluctant"?|unwilling|eager|excited|quick|Reluctant means not wanting to do something.
+Which word is an antonym of "transparent"?|opaque|clear|glassy|see-through|Opaque means light cannot pass through.
+Which sentence is in the passive voice?|The cake was eaten by Sam.|Sam ate the cake.|Sam is eating cake.|Sam will eat the cake.|In the passive voice, the subject receives the action.
+What is alliteration?|Repeating the first sound in nearby words|Rhyming the last words of lines|Using "like" or "as"|Exaggerating|"Silly snakes slither slowly" uses alliteration.
+Which spelling is correct?|necessary|neccessary|necesary|neccesary|One collar (c) and two sleeves (ss): necessary.
+Which word is an abstract noun?|courage|teacher|table|London|Abstract nouns name ideas or feelings you can't touch.
+What does "its" (without an apostrophe) mean?|Belonging to it|It is|It has|More than one it|"It's" means it is; "its" shows belonging.
+What is hyperbole?|Exaggeration for effect|A comparison using "like"|Giving human traits to objects|A short poem|"I've told you a million times" is hyperbole.
+Which prefix means "not"?|un-|re-|pre-|sub-|un + happy = unhappy, which means not happy.
+What does "benevolent" mean?|kind and generous|angry|lazy|clever|Benevolent people want to help others.
+What is personification?|Giving human qualities to non-human things|Talking about yourself|Using a person's name|Comparing two people|"The wind whispered" is personification.
+Which sentence uses a semicolon correctly?|I love reading; it relaxes me.|I love; reading relaxes me.|I; love reading.|I love reading it; .|A semicolon joins two closely linked complete sentences.
+Choose the right word: "Neither of the boys ___ ready."|is|are|were|be|"Neither" is singular, so it takes "is".
+What is the root word in "unhelpful"?|help|un|ful|helpful|Remove the prefix un- and the suffix -ful to find the root: help.
+Which is a complex sentence?|Although it rained, we played outside.|We played outside.|It rained and we played.|Play outside!|A complex sentence has a main clause and a subordinate clause.
+What does "meticulous" mean?|very careful about details|careless|very fast|very loud|A meticulous person checks every little thing.
+Which word is a synonym for "brief"?|short|long|heavy|bright|A brief meeting is a short one.
+Which sentence uses "affect" correctly?|The weather can affect my mood.|The affect was huge.|It had a good affect.|What an affect!|"Affect" is usually a verb; "effect" is usually a noun.
+In "the dog's bone", what shows possession?|apostrophe|comma|hyphen|colon|The apostrophe + s shows the bone belongs to the dog.
+What is an antonym of "scarce"?|plentiful|rare|limited|few|Scarce means hard to find; plentiful means there is lots.
+What type of word is "beautifully"?|adverb|adjective|noun|verb|It describes how something is done.
+Which word means "to make pain or a problem less severe"?|alleviate|aggravate|accelerate|abandon|Medicine can alleviate pain.
+What is the plural of "cactus"?|cacti|cactis|cactae|cactuss|Cacti is the Latin plural; cactuses is also correct.
+Complete the sentence: "I would ___ gone."|have|of|off|has|"Would of" is a common mistake; the correct phrase is "would have".
+What is a haiku?|A 3-line poem of 5, 7 and 5 syllables|A 14-line poem|A funny 5-line poem|A poem with no rules|The haiku comes from Japan.
+What does "ambiguous" mean?|having more than one possible meaning|very clear|very large|completely wrong|An ambiguous sentence can be understood in different ways.
+`,
+commander: `
+What is situational irony?|When the opposite of what you expect happens|A comparison using "like"|Repetition of sounds|A long speech|A fire station burning down is ironic.
+What does "ubiquitous" mean?|found everywhere|very rare|extremely old|hard to see|Smartphones are ubiquitous today.
+Which phrase is an oxymoron?|deafening silence|quick run|loud bang|cold ice|An oxymoron puts two opposite words together.
+In "If I were you", why is "were" used?|It is the subjunctive, for unreal situations|It is a spelling mistake|It is the future tense|It shows more than one person|The subjunctive "were" is used for wishes and imagined situations.
+Which word is a synonym for "ephemeral"?|short-lived|eternal|heavy|enormous|Ephemeral things last a very short time.
+What is the protagonist of a story?|The main character|The villain|The setting|The publisher|The protagonist is the character the story follows most.
+What is the antonym of "verbose"?|concise|wordy|loud|clumsy|Verbose uses too many words; concise uses few.
+Which sentence uses "whom" correctly?|To whom did you send it?|Whom is coming?|Whom wrote this?|Whom are you?|"Whom" is an object form, like "him".
+What is foreshadowing?|Hints about what will happen later|A flashback|The climax|A rhyme scheme|Writers plant early clues to build suspense.
+Which word means "to formally give up a job"?|resign|resist|reside|revive|To resign is to leave a position officially.
+How many lines does a sonnet have?|14|3|5|20|Shakespeare wrote 154 sonnets, each with 14 lines.
+What does "pragmatic" mean?|practical and realistic|dreamy|angry|careless|A pragmatic solution focuses on what actually works.
+What does the colon do in "You need three things: paper, pens and ink."?|Introduces a list|Joins two questions|Shows possession|Ends the sentence|A colon introduces what follows, such as a list or an explanation.
+What does "cacophony" mean?|a harsh mix of sounds|a sweet melody|a silence|a type of plant|The traffic jam made a cacophony of horns.
+Which figure of speech is "Time is a thief"?|Metaphor|Simile|Onomatopoeia|Alliteration|It says time IS a thief, without "like" or "as".
+What is a monologue?|A long speech by one character|A conversation between two people|A stage direction|A song|In a monologue, one character speaks their thoughts aloud.
+Which word is spelled correctly?|accommodate|acommodate|accomodate|acomodate|Accommodate has a double c and a double m.
+What does "candid" mean?|honest and direct|sweet|hidden|frightened|A candid answer tells the truth plainly.
+In "Swimming is fun", which word is a gerund?|Swimming|is|fun|none of them|A gerund is an -ing verb used as a noun.
+What is the antonym of "benevolent"?|malevolent|kind|charitable|gentle|Malevolent means wishing harm to others.
+What is an allusion?|An indirect reference to something well known|A false belief|A long description|A type of rhyme|Calling someone "a Romeo" alludes to Shakespeare.
+Which sentence is correct?|Fewer people came than expected.|Less people came than expected.|Lesser people came.|More less people came.|Use "fewer" for things you can count.
+What does "obsolete" mean?|no longer used|brand new|very popular|hard to find|Floppy disks are obsolete.
+What is the tone of a text?|The writer's attitude|The number of pages|The main character|The ending|Tone can be humorous, serious, angry, hopeful and more.
+Which is a rhetorical question?|"Who doesn't love holidays?"|"What time is it?"|"Where is my bag?"|"Can you pass the salt?"|A rhetorical question is asked for effect, not for an answer.
+What does "eloquent" mean?|fluent and persuasive in speaking|very quiet|confused|rude|An eloquent speaker uses words powerfully.
+What is the plural of "criterion"?|criteria|criterions|criterias|criterium|Criterion comes from Greek; its plural is criteria.
+What is an anecdote?|A short personal story|A medicine against poison|A long novel|A type of poem|Speakers use anecdotes to make a point memorable. (An antidote is the medicine.)
+Which word means "to make something seem less important"?|downplay|amplify|exaggerate|highlight|To downplay is to make something seem smaller than it is.
+What is juxtaposition?|Placing two contrasting things side by side|A rhyme at the ends of lines|A spelling rule|A type of punctuation|Putting opposites together highlights their differences.
+`},
+logic: {
+cadet: `
+All Bloops are Razzies and all Razzies are green. Are all Bloops green?|Yes|No|Only some|Can't tell|Every Bloop is a Razzie, and every Razzie is green, so every Bloop is green.
+What comes next: ▲ ■ ▲ ■ ▲ ?|■|▲|●|◆|The pattern takes turns: triangle, square, triangle, square.
+Tom is taller than Ana. Ana is taller than Raj. Who is the shortest?|Raj|Tom|Ana|Can't tell|Tom > Ana > Raj, so Raj is the shortest.
+A farmer has 5 sheep. All but 2 run away. How many are left?|2|3|5|0|"All but 2" means every sheep except 2 ran away, so 2 are left.
+Which is the odd one out: dog, cat, carrot, horse?|carrot|dog|cat|horse|A carrot is a vegetable; the others are animals.
+If today is Monday, what day will it be in 3 days?|Thursday|Wednesday|Friday|Tuesday|Count on from Monday: Tuesday, Wednesday, Thursday.
+How many months have 28 days?|12|1|2|6|Every month has at least 28 days!
+You have 3 apples and take away 2. How many apples do YOU have?|2|1|3|5|You took 2 apples, so you have 2.
+Which number is the odd one out: 2, 4, 7, 8?|7|2|4|8|7 is odd; the others are even.
+A clock shows 3:00. What is the angle between the hands?|90°|45°|180°|60°|Each hour mark is 30° apart, and 3 × 30° = 90°.
+`,
+pilot: `
+3 cats catch 3 mice in 3 minutes. How many cats catch 100 mice in 100 minutes?|3|100|33|300|Each cat catches 1 mouse every 3 minutes, so 3 cats catch 100 mice in 100 minutes.
+Some A are B. All B are C. Must some A be C?|Yes|No|Never|Can't tell|The A's that are B must also be C.
+What comes next: J, F, M, A, M, ?|J|A|S|M|They are the first letters of the months. June comes next.
+Mia's mum has 4 children: April, May, June and who?|Mia|July|August|March|The question says Mia's mum, so the 4th child is Mia.
+A bat and a ball cost $1.10. The bat costs $1 more than the ball. How much is the ball?|5 cents|10 cents|1 cent|15 cents|Ball = 5¢, bat = $1.05. Together they cost $1.10.
+Which is the odd one out: square, triangle, cube, circle?|cube|square|triangle|circle|A cube is 3D; the others are flat 2D shapes.
+Which word can you make by rearranging LISTEN?|SILENT|LISTENS|STOLEN|TALENT|LISTEN and SILENT use exactly the same 6 letters.
+You overtake the person in 2nd place in a race. What place are you in now?|2nd|1st|3rd|Last|You take their place, so you are 2nd.
+What comes next: 1, 4, 9, 16, ?|25|20|24|32|These are square numbers: 1², 2², 3², 4², so next is 5² = 25.
+Ann is older than Ben. Ben is older than Cal. Dee is older than Ann. Who is the oldest?|Dee|Ann|Ben|Cal|Dee > Ann > Ben > Cal.
+`,
+commander: `
+All roses are flowers. Some flowers fade quickly. Must some roses fade quickly?|No, not necessarily|Yes, always|Yes, all of them|Roses never fade|The flowers that fade quickly might not include any roses.
+What is the next prime number after 29?|31|33|30|37|31 can only be divided by 1 and itself.
+5 machines make 5 widgets in 5 minutes. How long do 100 machines take to make 100 widgets?|5 minutes|100 minutes|20 minutes|1 minute|Each machine makes 1 widget in 5 minutes, no matter how many machines there are.
+What is the contrapositive of "If it rains, the ground is wet"?|If the ground is not wet, it did not rain|If the ground is wet, it rained|If it doesn't rain, the ground isn't wet|It always rains|The contrapositive swaps and negates both parts. It is true whenever the original is.
+A lily pad patch doubles every day and covers a pond on day 30. When was the pond half covered?|Day 29|Day 15|Day 20|Day 28|It doubles each day, so it was half covered one day earlier.
+What comes next: 2, 6, 12, 20, 30, ?|42|40|36|44|The gaps are 4, 6, 8, 10, so the next gap is 12: 30 + 12 = 42.
+5 people each shake hands once with everyone else. How many handshakes?|10|25|20|5|Each of 5 people shakes 4 hands, and each handshake is counted twice: 5 × 4 ÷ 2 = 10.
+What is the binary number 1011 in decimal?|11|13|9|1011|1011 = 8 + 0 + 2 + 1 = 11.
+A is true and B is false. Is "A AND B" true or false?|False|True|Both|Unknown|AND is only true when both parts are true.
+Which is the odd one out: 2, 3, 5, 9, 11?|9|2|3|11|9 = 3 × 3, so it is not prime. The others are prime.
+`}};
+
+const BANK = {};
+for (const subj in BANK_TEXT) {
+  BANK[subj] = {};
+  for (const tier in BANK_TEXT[subj]) {
+    BANK[subj][tier] = BANK_TEXT[subj][tier].trim().split('\n').map(line => {
+      const [q, a, w1, w2, w3, ex] = line.split('|');
+      return { q, a, wrong: [w1, w2, w3], ex };
+    });
+  }
+}
+
+/* =================================================================
+   Random numbers (seeded for the Daily Challenge)
+   ================================================================= */
+let rnd = Math.random;
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+const rpick = arr => arr[Math.floor(rnd() * arr.length)];
+function rshuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+function todayKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+
+/* =================================================================
+   Question makers
+   ================================================================= */
+const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+const sup = n => String(n).split('').map(c => SUP[c]).join('');
+const neg = n => n < 0 ? `(−${Math.abs(n)})` : String(n);
+const num = n => n < 0 ? `−${Math.abs(n)}` : String(n);
+
+function finish(subject, text, answer, wrongs, ex) {
+  const opts = rshuffle([String(answer), ...wrongs.map(String)]);
+  return { subject, text, opts, correct: opts.indexOf(String(answer)), ex, answerText: String(answer), half: null };
+}
+// three distinct wrong numbers: likely mistakes first, then near misses
+function numWrongs(ans, mistakes, fmt = num) {
+  const out = [];
+  const seen = new Set([fmt(ans)]);
+  const add = v => { const s = fmt(v); if (Number.isFinite(v) && !seen.has(s) && out.length < 3) { seen.add(s); out.push(s); } };
+  mistakes.forEach(add);
+  let d = 1;
+  while (out.length < 3) { add(ans + (rnd() < 0.5 ? -d : d)); add(ans + d); d++; }
+  return out;
+}
+
+const MATH = {
+  cadet: [
+    () => { const a = ri(3, 12), b = ri(3, 12), ans = a * b;
+      return finish('math', `${a} × ${b} = ?`, ans, numWrongs(ans, [a * (b + 1), (a - 1) * b, a + b]),
+        `${a} × ${b} means ${b} groups of ${a}, which is ${ans}.${b === 9 ? ` Trick: ${a} × 10 − ${a} = ${ans}.` : ''}`); },
+    () => { const b = ri(2, 12), ans = ri(2, 12), n = b * ans;
+      return finish('math', `${n} ÷ ${b} = ?`, ans, numWrongs(ans, [ans + 1, ans - 1, n - b]),
+        `${b} × ${ans} = ${n}, so ${n} ÷ ${b} = ${ans}. Division undoes multiplication.`); },
+    () => { const d = rpick([2, 3, 4, 5, 10]), k = ri(2, 12), n = d * k;
+      return finish('math', `What is 1/${d} of ${n}?`, k, numWrongs(k, [n - d, k * 2, n / 2 === k ? k + 2 : Math.round(n / 2)]),
+        `To find 1/${d}, split ${n} into ${d} equal parts: ${n} ÷ ${d} = ${k}.`); },
+    () => { const a = ri(120, 780), b = ri(25, 199), ans = a + b;
+      return finish('math', `${a} + ${b} = ?`, ans, numWrongs(ans, [ans + 10, ans - 10, ans + 100]),
+        `Add hundreds, tens and ones: ${a} + ${b} = ${ans}.`); },
+    () => { const a = ri(300, 950), b = ri(25, 280), ans = a - b;
+      return finish('math', `${a} − ${b} = ?`, ans, numWrongs(ans, [ans + 10, ans - 10, ans + 100]),
+        `Check by adding back: ${ans} + ${b} = ${a}.`); },
+    () => { const n = ri(2, 9), d = rpick([2, 3, 4, 5]), ans = n * d;
+      return finish('math', `How many ${['halves', 'thirds', 'quarters', 'fifths'][d - 2]} are in ${n} wholes?`, ans, numWrongs(ans, [n + d, ans + d, ans - d]),
+        `Each whole has ${d} parts, so ${n} wholes have ${n} × ${d} = ${ans} parts.`); },
+  ],
+  pilot: [
+    () => { const a = ri(-15, -1), b = ri(2, 20), ans = a + b;
+      return finish('math', `${num(a)} + ${b} = ?`, ans, numWrongs(ans, [-(ans), a - b, ans + 2]),
+        `Start at ${num(a)} on the number line and move ${b} steps right to reach ${num(ans)}.`); },
+    () => { const a = ri(-8, 10), b = ri(3, 15), ans = a - b;
+      return finish('math', `${num(a)} − ${b} = ?`, ans, numWrongs(ans, [-(ans), a + b, ans - 2]),
+        `Start at ${num(a)} and move ${b} steps left to reach ${num(ans)}.`); },
+    () => { const p = rpick([10, 20, 25, 50, 75, 5, 15]); const base = p % 25 === 0 ? 4 : p % 10 === 0 ? 10 : 20; const n = base * ri(2, 12); const ans = n * p / 100;
+      return finish('math', `What is ${p}% of ${n}?`, ans, numWrongs(ans, [n - ans, ans * 2, p]),
+        `${p}% means ${p} out of 100: ${n} × ${p} ÷ 100 = ${ans}.`); },
+    () => { const x = ri(1, 12), a = ri(2, 9), b = ri(1, 20), c = a * x + b;
+      return finish('math', `Solve: ${a}x + ${b} = ${c}`, x, numWrongs(x, [(c + b) / a, c - b, x + 1].map(v => Number.isInteger(v) ? v : Math.round(v))),
+        `Subtract ${b} from both sides: ${a}x = ${c - b}. Divide by ${a}: x = ${x}.`); },
+    () => { const a = ri(2, 12), b = ri(2, 9), c = ri(2, 9), ans = a + b * c;
+      return finish('math', `${a} + ${b} × ${c} = ?`, ans, numWrongs(ans, [(a + b) * c, a * b + c, ans + 1]),
+        `Multiply before adding: ${b} × ${c} = ${b * c}, then ${a} + ${b * c} = ${ans}.`); },
+    () => { const a = ri(2, 9), b = ri(2, 9), c = ri(2, 6), ans = (a + b) * c;
+      return finish('math', `(${a} + ${b}) × ${c} = ?`, ans, numWrongs(ans, [a + b * c, a * c + b, ans + c]),
+        `Brackets first: ${a} + ${b} = ${a + b}, then × ${c} = ${ans}.`); },
+  ],
+  commander: [
+    () => { const x = ri(-9, 9) || 4, c = ri(1, 4), a = c + ri(1, 5), b = ri(1, 15), d = (a - c) * x - b;
+      return finish('math', `Solve: ${a}x − ${b} = ${c}x ${d < 0 ? '− ' + Math.abs(d) : '+ ' + d}`, x, numWrongs(x, [-x, x + 1, x - 2]),
+        `Move x terms left and numbers right: ${a - c}x = ${num(d + b)}, so x = ${num(x)}.`); },
+    () => { const b = ri(2, 5), e = b === 2 ? ri(3, 10) : b === 3 ? ri(2, 6) : ri(2, 4), ans = b ** e;
+      return finish('math', `${b}${sup(e)} = ?`, ans, numWrongs(ans, [b * e, b ** (e - 1), b ** (e + 1)]),
+        `${b}${sup(e)} means ${b} multiplied by itself ${e} times: ${Array(e).fill(b).join(' × ')} = ${ans}.`); },
+    () => { const n = ri(4, 20), sq = n * n;
+      return finish('math', `√${sq} = ?`, n, numWrongs(n, [sq / 2, n + 1, n - 1]),
+        `${n} × ${n} = ${sq}, so the square root of ${sq} is ${n}.`); },
+    () => { const p = ri(1, 5), q = ri(p + 1, 7), k = ri(2, 12), total = (p + q) * k, ans = q * k;
+      return finish('math', `Share ${total} in the ratio ${p}:${q}. What is the larger share?`, ans, numWrongs(ans, [p * k, total / 2, ans + k].map(Math.round)),
+        `${p} + ${q} = ${p + q} parts. One part = ${total} ÷ ${p + q} = ${k}. Larger share = ${q} × ${k} = ${ans}.`); },
+    () => { const a = ri(25, 90), b = ri(20, 150 - a), ans = 180 - a - b;
+      return finish('math', `A triangle has angles of ${a}° and ${b}°. What is the third angle?`, ans + '°', numWrongs(ans, [360 - a - b, a + b, ans + 10], v => v + '°'),
+        `Angles in a triangle add up to 180°: 180 − ${a} − ${b} = ${ans}°.`); },
+    () => { const m = ri(2, 6), c = ri(-9, 9), x = ri(-5, 6), ans = m * x + c;
+      return finish('math', `If y = ${m}x ${c < 0 ? '− ' + Math.abs(c) : '+ ' + c}, what is y when x = ${num(x)}?`, ans, numWrongs(ans, [m * -x + c, m + x + c, m * x - c]),
+        `y = ${m} × ${neg(x)} ${c < 0 ? '− ' + Math.abs(c) : '+ ' + c} = ${num(m * x)} ${c < 0 ? '− ' + Math.abs(c) : '+ ' + c} = ${num(ans)}.`); },
+    () => { const bse = ri(2, 12) * 2, h = ri(3, 14), ans = bse * h / 2;
+      return finish('math', `A triangle has base ${bse} cm and height ${h} cm. What is its area?`, ans + ' cm²', numWrongs(ans, [bse * h, bse + h, ans + h], v => v + ' cm²'),
+        `Area = ½ × base × height = ½ × ${bse} × ${h} = ${ans} cm².`); },
+  ],
+};
+
+const SEQUENCES = {
+  cadet: () => { const s = ri(1, 20), d = ri(2, 9), down = rnd() < 0.3; const seq = Array.from({ length: 5 }, (_, i) => down ? s + 5 * d - i * d : s + i * d); const ans = down ? seq[4] - d : seq[4] + d;
+    return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [ans + 1, ans - 1, down ? ans - d : ans + d]),
+      `Each number is ${d} ${down ? 'less' : 'more'} than the one before: ${seq[4]} ${down ? '−' : '+'} ${d} = ${ans}.`); },
+  pilot: () => { const kind = ri(0, 2);
+    if (kind === 0) { const s = ri(1, 5), r = rpick([2, 3]); const seq = Array.from({ length: 4 }, (_, i) => s * r ** i); const ans = seq[3] * r;
+      return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [seq[3] + (seq[3] - seq[2]), ans + r, seq[3] * 2 === ans ? ans + 2 : seq[3] * 2]),
+        `Each number is multiplied by ${r}: ${seq[3]} × ${r} = ${ans}.`); }
+    if (kind === 1) { const s = ri(5, 20), up = ri(3, 8), dn = ri(1, up - 1); const seq = [s]; for (let i = 1; i < 6; i++) seq.push(seq[i - 1] + (i % 2 ? up : -dn)); const ans = seq[5] + up;
+      return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [seq[5] - dn, ans + 1, ans - 2]),
+        `The pattern is +${up}, −${dn}, +${up}, −${dn}… so next is ${seq[5]} + ${up} = ${ans}.`); }
+    const off = ri(0, 5); const seq = [1, 2, 3, 4, 5].map(n => n * n + off); const ans = 36 + off;
+    return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [ans - 2, seq[4] + 9, ans + 1]),
+      `These are square numbers${off ? ` plus ${off}` : ''}: 6² ${off ? `+ ${off} ` : ''}= ${ans}.`); },
+  commander: () => { const kind = ri(0, 2);
+    if (kind === 0) { const a = ri(1, 4), b = ri(2, 5); const seq = [a, b]; for (let i = 2; i < 6; i++) seq.push(seq[i - 1] + seq[i - 2]); const ans = seq[4] + seq[5];
+      return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [seq[5] + (seq[5] - seq[4]), ans + 1, seq[5] * 2]),
+        `Each number is the sum of the two before it: ${seq[4]} + ${seq[5]} = ${ans}.`); }
+    if (kind === 1) { const k = ri(0, 1); const seq = [1, 2, 3, 4, 5].map(n => 2 ** n - (k ? 1 : 0)); const ans = 2 ** 6 - (k ? 1 : 0);
+      return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [seq[4] * 2, ans + 2, ans - 4]),
+        k ? `Each number is one less than a power of 2: 2⁶ − 1 = 63.` : `Each number doubles: ${seq[4]} × 2 = ${ans}.`); }
+    const seq = [1, 2, 3, 4, 5].map(n => n * (n + 1) / 2); const ans = 21;
+    return finish('logic', `What comes next: ${seq.join(', ')}, ?`, ans, numWrongs(ans, [20, 22, 25]),
+      `These are triangular numbers: add 2, 3, 4, 5, then 6. 15 + 6 = 21.`); },
+};
+
+let decks = {};
+function fromBank(subject, tier) {
+  const key = subject + tier;
+  if (!decks[key] || !decks[key].length) decks[key] = rshuffle([...BANK[subject][tier].keys()]);
+  const item = BANK[subject][tier][decks[key].pop()];
+  return finish(subject, item.q, item.a, item.wrong, item.ex);
+}
+function makeQuestion(subject, tier) {
+  const s = subject === 'mixed' ? rpick(SUBJECTS) : subject;
+  if (s === 'math') return rpick(MATH[tier])();
+  if (s === 'logic') return rnd() < 0.6 ? SEQUENCES[tier]() : fromBank('logic', tier);
+  return fromBank(s, tier);
+}
+
+/* =================================================================
+   Save data (localStorage, safe if blocked)
+   ================================================================= */
+const SAVE_KEY = 'galaxyDefenders.v1';
+function defaultSave() {
+  return {
+    xp: 0, ship: 'cyan', laser: 'cyan', nickname: '',
+    unlocked: { cadet: 1, pilot: 1, commander: 1 },
+    cleared: { cadet: {}, pilot: {}, commander: {} },
+    achievements: {}, leaderboard: [], daily: {},
+    stats: { correct: 0, answered: 0, bestStreak: 0, perfectWaves: 0, bosses: 0, powerups: 0, timeBest: 0, subj: {} },
+    settings: { music: true, sfx: true, bigText: false, reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches },
+    last: { tier: 'cadet', subject: 'math', mode: 'campaign' },
+  };
+}
+let S = defaultSave();
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw), base = defaultSave();
+      S = { ...base, ...d, stats: { ...base.stats, ...d.stats }, settings: { ...base.settings, ...d.settings }, last: { ...base.last, ...d.last },
+        unlocked: { ...base.unlocked, ...d.unlocked }, cleared: { ...base.cleared, ...d.cleared } };
+    }
+  } catch (e) { S = defaultSave(); }
+}
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage blocked: progress lasts this visit only */ } }
+load();
+
+const levelFromXp = xp => Math.min(CONFIG.maxLevel, 1 + Math.floor(Math.sqrt(xp / 40)));
+const xpForLevel = l => 40 * (l - 1) ** 2;
+const rankName = l => RANKS.filter(r => l >= r[0]).pop()[1];
+
+/* =================================================================
+   Achievements
+   ================================================================= */
+const ACH = [
+  { id: 'first', name: 'First Contact', desc: 'Get your first answer right', test: s => s.stats.correct >= 1 },
+  { id: 'streak10', name: '10 in a Row', desc: 'Reach a 10-answer streak', test: s => s.stats.bestStreak >= 10 },
+  { id: 'streak25', name: 'Unstoppable', desc: 'Reach a 25-answer streak', test: s => s.stats.bestStreak >= 25 },
+  { id: 'perfect', name: 'Perfect Wave', desc: 'Clear a wave with no mistakes', test: s => s.stats.perfectWaves >= 1 },
+  { id: 'boss', name: 'Boss Breaker', desc: 'Defeat a boss asteroid', test: s => s.stats.bosses >= 1 },
+  { id: 'planet', name: 'Planet Saver', desc: 'Clear your first planet', test: s => Object.values(s.cleared).some(t => Object.keys(t).length >= 1) },
+  { id: 'galaxy', name: 'Galaxy Guardian', desc: 'Clear all 5 planets in one tier', test: s => Object.values(s.cleared).some(t => Object.keys(t).length >= 5) },
+  { id: 'commander', name: 'Top Brass', desc: 'Clear a planet on Commander tier', test: s => Object.keys(s.cleared.commander).length >= 1 },
+  { id: 'math', name: 'Math Master', desc: '100 correct Math answers', test: s => (s.stats.subj.math || 0) >= 100 },
+  { id: 'science', name: 'Lab Legend', desc: '50 correct Science answers', test: s => (s.stats.subj.science || 0) >= 50 },
+  { id: 'geo', name: 'World Explorer', desc: '50 correct Geography answers', test: s => (s.stats.subj.geography || 0) >= 50 },
+  { id: 'english', name: 'Word Wizard', desc: '50 correct English answers', test: s => (s.stats.subj.english || 0) >= 50 },
+  { id: 'logic', name: 'Pattern Pro', desc: '50 correct Logic answers', test: s => (s.stats.subj.logic || 0) >= 50 },
+  { id: 'speed', name: 'Speed Demon', desc: '20 correct in one Time Attack', test: s => s.stats.timeBest >= 20 },
+  { id: 'daily', name: 'Daily Duty', desc: 'Finish a Daily Challenge', test: s => Object.keys(s.daily).length >= 1 },
+  { id: 'power', name: 'Power Player', desc: 'Use 10 power-ups', test: s => s.stats.powerups >= 10 },
+  { id: 'level10', name: 'Rising Star', desc: 'Reach level 10', test: s => levelFromXp(s.xp) >= 10 },
+  { id: 'brainiac', name: 'Brainiac', desc: '500 correct answers in total', test: s => s.stats.correct >= 500 },
+];
+function checkAchievements() {
+  const fresh = [];
+  for (const a of ACH) if (!S.achievements[a.id] && a.test(S)) { S.achievements[a.id] = todayKey(); fresh.push(a); }
+  return fresh;
+}
+
+/* =================================================================
+   Audio: master → music / sfx buses, all synthesised
+   ================================================================= */
+let AC = null, master, musicBus, sfxBus, muted = false;
+function audio() {
+  if (!AC) {
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      master = AC.createGain(); master.connect(AC.destination);
+      musicBus = AC.createGain(); musicBus.connect(master);
+      sfxBus = AC.createGain(); sfxBus.connect(master);
+      applyVolumes();
+    } catch (e) { return null; }
+  }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function applyVolumes() {
+  if (!AC) return;
+  master.gain.value = muted ? 0 : 1;
+  musicBus.gain.value = S.settings.music ? 0.5 : 0;
+  sfxBus.gain.value = S.settings.sfx ? 1 : 0;
+}
+function note(freq, dur, type, vol, bus, delay = 0, slide = null) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(bus === 'music' ? musicBus : sfxBus);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function noise(dur, vol) {
+  const a = audio(); if (!a) return;
+  const len = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
+  const s = a.createBufferSource(), g = a.createGain(), f = a.createBiquadFilter();
+  f.type = 'lowpass'; f.frequency.value = 900;
+  s.buffer = buf; g.gain.value = vol; s.connect(f).connect(g).connect(sfxBus); s.start();
+}
+const SFX = {
+  laser() { note(1400, 0.18, 'sawtooth', 0.08, 'sfx', 0, 220); },
+  boom() { noise(0.45, 0.35); note(90, 0.3, 'sine', 0.25, 'sfx', 0, 40); },
+  wrong() { note(220, 0.25, 'square', 0.07, 'sfx', 0, 140); note(150, 0.3, 'square', 0.06, 'sfx', 0.12, 90); },
+  impact() { noise(0.6, 0.5); note(60, 0.5, 'sine', 0.35, 'sfx', 0, 30); },
+  power() { [440, 660, 880].forEach((f, i) => note(f, 0.12, 'triangle', 0.1, 'sfx', i * 0.06)); },
+  combo() { note(988, 0.1, 'square', 0.05, 'sfx'); note(1318, 0.15, 'square', 0.05, 'sfx', 0.08); },
+  win() { [523, 659, 784, 1047, 1318].forEach((f, i) => note(f, 0.25, 'triangle', 0.12, 'sfx', i * 0.12)); },
+  lose() { [392, 330, 262, 196].forEach((f, i) => note(f, 0.3, 'triangle', 0.1, 'sfx', i * 0.18)); },
+  click() { note(700, 0.05, 'sine', 0.05, 'sfx'); },
+};
+// Looping synth soundtrack: 4-bar progression, bass + arpeggio
+let musicTimer = null, musicStep = 0;
+const PROG = [110, 87.31, 130.81, 98];   // A2, F2, C3, G2
+function startMusic() {
+  if (musicTimer || !audio()) return;
+  musicStep = 0;
+  musicTimer = setInterval(() => {
+    if (G.paused || document.hidden || !S.settings.music) return;
+    const root = PROG[Math.floor(musicStep / 16) % 4];
+    if (musicStep % 4 === 0) note(root / 2, 0.4, 'sawtooth', 0.06, 'music');
+    if (musicStep % 8 === 4) note(root / 2 * 1.5, 0.25, 'sawtooth', 0.04, 'music');
+    note(root * [2, 3, 4, 3, 2.5, 3, 4, 6][musicStep % 8], 0.11, 'square', 0.018, 'music');
+    musicStep++;
+  }, 125);
+}
+function stopMusic() { clearInterval(musicTimer); musicTimer = null; }
+
+/* =================================================================
+   Screens and menus
+   ================================================================= */
+const $ = id => document.getElementById(id);
+const SCREENS = ['title', 'setup', 'map', 'summary', 'achievements', 'hangar', 'leaderboard', 'settings'];
+let screen = 'title';
+function show(name) {
+  screen = name;
+  SCREENS.forEach(s => $('s-' + s).hidden = s !== name);
+  const inGame = name === 'game';
+  $('g-hud').hidden = !inGame; $('g-panel').hidden = !inGame;
+  ({ title: renderTitle, setup: renderSetup, map: renderMap, achievements: renderAch, hangar: renderHangar, leaderboard: renderLb, settings: renderSettings })[name]?.();
+  if (!inGame) { $('s-' + name).scrollTop = 0; }
+  requestAnimationFrame(layout);
+}
+document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { audio(); SFX.click(); show(b.dataset.go); }));
+document.querySelectorAll('[data-home]').forEach(b => b.addEventListener('click', () => {
+  if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html';
+}));
+
+function renderPilot(prefix, gained) {
+  const lvl = levelFromXp(S.xp), lo = xpForLevel(lvl), hi = xpForLevel(lvl + 1);
+  $(prefix + 'Level').textContent = lvl;
+  $(prefix + 'Rank').textContent = rankName(lvl);
+  $(prefix + 'XpBar').style.width = lvl >= CONFIG.maxLevel ? '100%' : `${Math.round((S.xp - lo) / (hi - lo) * 100)}%`;
+  $(prefix + 'XpText').textContent = (gained != null ? `+${gained} XP · ` : '') + (lvl >= CONFIG.maxLevel ? `${S.xp} XP · max level` : `${S.xp} / ${hi} XP to level ${lvl + 1}`);
+}
+function renderTitle() {
+  renderPilot('t');
+  $('tBadges').textContent = `${Object.keys(S.achievements).length}/${ACH.length}`;
+}
+
+function setPressed(container, attr, value) {
+  container.querySelectorAll(`[data-${attr}]`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset[attr] === value)));
+}
+function renderSetup() {
+  setPressed($('tierChoices'), 'tier', S.last.tier);
+  setPressed($('subjectChips'), 'subject', S.last.mode === 'daily' ? 'mixed' : S.last.subject);
+  setPressed($('modeChoices'), 'mode', S.last.mode);
+  $('subjectChips').querySelectorAll('.chip').forEach(c => c.disabled = S.last.mode === 'daily');
+  const done = S.daily[todayKey() + S.last.tier];
+  $('dailyDesc').textContent = done != null ? `Done today: ${done} points. Play again to beat it.` : '10 mixed questions, the same for everyone today.';
+  $('launchBtn').textContent = S.last.mode === 'campaign' ? 'OPEN STAR MAP' : 'LAUNCH';
+}
+$('tierChoices').addEventListener('click', e => { const b = e.target.closest('[data-tier]'); if (b) { S.last.tier = b.dataset.tier; save(); SFX.click(); renderSetup(); } });
+$('subjectChips').addEventListener('click', e => { const b = e.target.closest('[data-subject]'); if (b && !b.disabled) { S.last.subject = b.dataset.subject; save(); SFX.click(); renderSetup(); } });
+$('modeChoices').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) { S.last.mode = b.dataset.mode; save(); SFX.click(); renderSetup(); } });
+$('launchBtn').addEventListener('click', () => {
+  audio(); SFX.click();
+  if (S.last.mode === 'campaign') show('map');
+  else startGame({ mode: S.last.mode, tier: S.last.tier, subject: S.last.mode === 'daily' ? 'mixed' : S.last.subject, planet: 0 });
+});
+
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+function renderMap() {
+  const tier = S.last.tier, unlocked = S.unlocked[tier], cleared = S.cleared[tier];
+  $('mapInfo').textContent = `${TIER_NAMES[tier]} tier · ${SUBJECT_NAMES[S.last.subject]} · ${Object.keys(cleared).length} of 5 planets cleared`;
+  $('map').innerHTML = PLANETS.map((p, i) => {
+    const locked = i >= unlocked, medal = cleared[i];
+    return `<button class="planet" data-planet="${i}" ${locked ? 'disabled' : ''} style="--glow:${p.color}66" aria-label="${p.name}${locked ? ', locked' : ''}">
+      <span class="orb" style="background:radial-gradient(circle at 35% 30%, #fff8, ${p.color} 30%, ${p.dark} 100%)">${locked ? `<span class="lock">${LOCK_SVG}</span>` : ''}</span>
+      <b>${p.name}</b>
+      ${medal ? `<span class="medal r-${medal}">${medal.toUpperCase()}</span>` : `<small>${locked ? 'Locked' : 'Ready'}</small>`}
+    </button>`;
+  }).join('');
+}
+$('map').addEventListener('click', e => {
+  const b = e.target.closest('[data-planet]'); if (!b || b.disabled) return;
+  startGame({ mode: 'campaign', tier: S.last.tier, subject: S.last.subject, planet: +b.dataset.planet });
+});
+
+const ACH_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6z"/></svg>';
+function renderAch() {
+  $('achList').innerHTML = ACH.map(a => `<div class="ach ${S.achievements[a.id] ? 'got' : ''}"><span class="icon">${S.achievements[a.id] ? ACH_ICON : LOCK_SVG.replace('#fff', 'currentColor')}</span><div><b>${a.name}</b><span>${a.desc}</span></div></div>`).join('');
+}
+
+function swatchBg(c) { return c === 'rainbow' ? 'conic-gradient(#ff4d6d,#ffb627,#b6ff3b,#39f3ff,#c46bff,#ff4d6d)' : c; }
+function renderHangar() {
+  const lvl = levelFromXp(S.xp); $('hLevel').textContent = lvl;
+  const sw = (list, cur, kind) => list.map(x => `<button class="swatch" data-${kind}="${x.id}" aria-pressed="${cur === x.id}" ${lvl < x.level ? 'disabled' : ''}><i style="background:${swatchBg(x.color)}"></i>${x.name}<small style="color:var(--muted)">${lvl < x.level ? 'Level ' + x.level : cur === x.id ? 'Equipped' : 'Unlocked'}</small></button>`).join('');
+  $('shipSw').innerHTML = sw(SHIPS, S.ship, 'ship');
+  $('laserSw').innerHTML = sw(LASERS, S.laser, 'laser');
+}
+$('shipSw').addEventListener('click', e => { const b = e.target.closest('[data-ship]'); if (b && !b.disabled) { S.ship = b.dataset.ship; save(); SFX.click(); renderHangar(); } });
+$('laserSw').addEventListener('click', e => { const b = e.target.closest('[data-laser]'); if (b && !b.disabled) { S.laser = b.dataset.laser; save(); SFX.laser(); renderHangar(); } });
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+function renderLb() {
+  $('lbBody').innerHTML = S.leaderboard.length
+    ? S.leaderboard.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${MODE_NAMES[r.mode] || ''}</td><td>${TIER_NAMES[r.tier] || ''}</td><td class="num">${r.score.toLocaleString()}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No scores yet. Finish a mission to get on the board.</td></tr>';
+}
+
+function renderSettings() {
+  $('setMusic').checked = S.settings.music; $('setSfx').checked = S.settings.sfx;
+  $('setBig').checked = S.settings.bigText; $('setMotion').checked = S.settings.reduceMotion;
+}
+function applySettings() {
+  document.body.classList.toggle('big-text', S.settings.bigText);
+  document.body.classList.toggle('reduce-motion', S.settings.reduceMotion);
+  applyVolumes();
+}
+[['setMusic', 'music'], ['setSfx', 'sfx'], ['setBig', 'bigText'], ['setMotion', 'reduceMotion']].forEach(([id, key]) =>
+  $(id).addEventListener('change', e => { audio(); S.settings[key] = e.target.checked; save(); applySettings(); SFX.click(); }));
+$('resetBtn').addEventListener('click', () => { $('resetModal').hidden = false; $('resetNo').focus(); });
+$('resetNo').addEventListener('click', () => { $('resetModal').hidden = true; });
+$('resetYes').addEventListener('click', () => {
+  const keepSettings = S.settings; S = defaultSave(); S.settings = keepSettings; save(); applySettings();
+  $('resetModal').hidden = true; show('title');
+});
+applySettings();
+
+/* =================================================================
+   Game state and engine
+   ================================================================= */
+const G = { paused: false, running: false, asteroids: [], particles: [], lasers: [], floaters: [] };
+let lastOpts = null;
+
+function fallTime() {
+  if (G.mode === 'time') return CONFIG.timeAttack.fallTime;
+  if (G.mode === 'daily') return CONFIG.daily.fallTime;
+  if (G.mode === 'practice') return CONFIG.practice.fallTime;
+  return Math.max(CONFIG.minFallTime, CONFIG.fallTime[G.tier] - (G.wave - 1) * CONFIG.fallStepWave - G.planet * CONFIG.fallStepPlanet);
+}
+function maxAlive() {
+  if (G.mode === 'time') return 3;
+  if (G.mode === 'practice') return 1;
+  if (G.mode === 'daily') return 2;
+  return G.wave <= 2 ? 2 : 3;
+}
+const usesShield = () => G.mode === 'campaign' || G.mode === 'daily';
+
+function startGame(opts) {
+  lastOpts = opts;
+  audio();
+  rnd = opts.mode === 'daily' ? mulberry32(hashStr(todayKey() + opts.tier)) : Math.random;
+  decks = {};
+  Object.assign(G, {
+    mode: opts.mode, tier: opts.tier, subject: opts.subject, planet: opts.planet || 0,
+    wave: 0, shield: 100, energy: CONFIG.startEnergy, score: 0, streak: 0, bestStreak: 0,
+    correct: 0, answered: 0, asteroids: [], lasers: [], floaters: [], particles: [],
+    freeze: 0, timeLeft: opts.mode === 'time' ? CONFIG.timeAttack.seconds : null,
+    feedback: null, running: true, paused: false, spawnLeft: 0, spawnTimer: 0.6,
+    waveMistakes: 0, waveAnswered: 0, perfectWaves: 0, bosses: 0, powerUsed: 0, subj: {},
+    elapsed: 0, shake: 0, banner: null, shownId: null, nextId: 1, aimAngle: -Math.PI / 2,
+  });
+  if (G.mode === 'campaign') nextWave();
+  else {
+    G.spawnLeft = G.mode === 'daily' ? CONFIG.daily.questions : Infinity;
+    showBanner({ time: 'TIME ATTACK', practice: 'PRACTICE', daily: 'DAILY CHALLENGE' }[G.mode], { time: '60 seconds. Go!', practice: 'No timer. No damage.', daily: '10 questions' }[G.mode]);
+  }
+  $('feedback').hidden = true;
+  $('shieldBar').style.visibility = usesShield() ? 'visible' : 'hidden';
+  $('timer').hidden = G.mode !== 'time';
+  $('pShield').hidden = !usesShield();
+  show('game');
+  startMusic();
+  renderHud(); renderQuestion();
+}
+
+function nextWave() {
+  G.wave++;
+  G.waveMistakes = 0; G.waveAnswered = 0;
+  const boss = G.wave === CONFIG.wavesPerPlanet;
+  G.spawnLeft = boss ? 3 : CONFIG.waveSize(G.planet, G.wave);
+  G.spawnTimer = 1.6;
+  showBanner(boss ? 'BOSS WAVE' : `WAVE ${G.wave}`, boss ? `Answer ${CONFIG.bossHits} in a row to break it` : PLANETS[G.planet].name);
+  renderHud();
+}
+
+function showBanner(text, sub) { G.banner = { text, sub, life: 2.2 }; }
+
+function spawn() {
+  const isBoss = G.mode === 'campaign' && G.wave === CONFIG.wavesPerPlanet && G.spawnLeft === 1;
+  const T = fallTime() * (isBoss ? 1.5 : 1);
+  const n = 11, shape = Array.from({ length: n }, () => 0.78 + Math.random() * 0.32);
+  G.asteroids.push({
+    id: G.nextId++, x: 0.15 + Math.random() * 0.7, y: -0.06,
+    speed: 1.06 / T, r: isBoss ? 62 : 26 + Math.random() * 8, boss: isBoss, hits: 0,
+    rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.8, shape,
+    craters: Array.from({ length: isBoss ? 6 : 3 }, () => ({ a: Math.random() * 6.28, d: Math.random() * 0.55, s: 0.12 + Math.random() * 0.14 })),
+    q: makeQuestion(G.subject, G.tier),
+  });
+}
+
+const target = () => G.asteroids[0] || null;
+const multiplier = () => { for (const [need, m] of CONFIG.combos) if (G.streak >= need) return m; return 1; };
+
+function answer(i) {
+  const a = target();
+  if (!G.running || G.paused || G.feedback || !a) return;
+  if (a.q.half && a.q.half.includes(i)) return;
+  G.answered++; G.waveAnswered++;
+  const p = toScreen(a);
+  if (i === a.q.correct) {
+    G.correct++; G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
+    G.subj[a.q.subject] = (G.subj[a.q.subject] || 0) + 1;
+    const m = multiplier(), pts = CONFIG.pointsPerCorrect * m * (a.boss ? 2 : 1);
+    G.score += pts; G.energy = Math.min(100, G.energy + CONFIG.energyPerCorrect);
+    fireLaser(p.x, p.y);
+    floater(`+${pts}${m > 1 ? ' ×' + m : ''}`, p.x, p.y - a.r * scale() - 10, '#b6ff3b');
+    if ([3, 6, 10, 15, 20, 25].includes(G.streak)) { floater(G.streak >= 10 ? 'UNSTOPPABLE!' : G.streak >= 6 ? 'ON FIRE!' : 'NICE STREAK!', W / 2, playTop() + 60, '#ff3df2', 1.6); SFX.combo(); }
+    if (a.boss) {
+      a.hits++;
+      if (a.hits >= CONFIG.bossHits) { destroy(a, true); G.bosses++; floater('BOSS DESTROYED!', W / 2, playTop() + 100, '#ffb627', 2); }
+      else { burst(p.x, p.y, 14, '#ffb627'); a.q = makeQuestion(G.subject, G.tier); floater(`HIT ${a.hits}/${CONFIG.bossHits}`, p.x, p.y + 20, '#ffb627'); }
+    } else destroy(a);
+    SFX.laser(); setTimeout(SFX.boom, 90);
+  } else {
+    G.streak = 0; G.waveMistakes++;
+    SFX.wrong();
+    const q = a.q;
+    if (usesShield()) { G.shield = Math.max(0, G.shield - CONFIG.damageWrong); shakeIt(10); }
+    if (a.boss) { a.hits = 0; a.q = makeQuestion(G.subject, G.tier); burst(p.x, p.y, 10, '#ff4d6d'); }
+    else { G.asteroids.shift(); burst(p.x, p.y, 26, '#ff4d6d'); }
+    showFeedback(q, i, false);
+  }
+  renderHud(); renderQuestion();
+}
+
+function destroy(a, big) {
+  const p = toScreen(a);
+  G.asteroids.splice(G.asteroids.indexOf(a), 1);
+  burst(p.x, p.y, big ? 90 : 34, '#ffd27a');
+  burst(p.x, p.y, big ? 40 : 14, laserColor());
+  if (big) shakeIt(16);
+}
+
+function impact(a) {
+  const p = toScreen(a);
+  G.answered++; G.waveAnswered++; G.waveMistakes++; G.streak = 0;
+  SFX.impact(); shakeIt(18);
+  burst(p.x, p.y, 40, '#ff7a3d');
+  if (usesShield()) G.shield = Math.max(0, G.shield - CONFIG.damageImpact * (a.boss ? 2 : 1));
+  const q = a.q;
+  if (a.boss) { a.y = -0.06; a.hits = 0; a.q = makeQuestion(G.subject, G.tier); }
+  else G.asteroids.shift();
+  showFeedback(q, -1, true);
+  renderHud(); renderQuestion();
+}
+
+function showFeedback(q, picked, tooSlow) {
+  G.feedback = { auto: G.mode === 'time' ? 2.2 : 12 };
+  $('fbTitle').textContent = tooSlow ? 'TOO SLOW — IMPACT!' : 'NOT QUITE';
+  $('fbRight').textContent = `Answer: ${q.answerText}`;
+  $('fbWhy').textContent = q.ex;
+  $('feedback').hidden = false; $('answers').hidden = true;
+  $('fbBtn').focus({ preventScroll: true });
+  layout();
+}
+function continueFeedback() {
+  if (!G.feedback) return;
+  G.feedback = null;
+  $('feedback').hidden = true; $('answers').hidden = false;
+  if (usesShield() && G.shield <= 0) { endGame('fail'); return; }
+  renderQuestion(); layout();
+}
+$('fbBtn').addEventListener('click', continueFeedback);
+
+function usePower(kind) {
+  if (!G.running || G.paused || G.feedback) return;
+  const c = CONFIG.power[kind]; if (G.energy < c.cost) return;
+  const a = target();
+  if (kind === 'freeze') { if (G.freeze > 0) return; G.freeze = c.seconds; floater('FREEZE!', W / 2, playTop() + 80, '#9be7ff', 1.2); }
+  if (kind === 'half') {
+    if (!a || a.q.half) return;
+    const wrong = [0, 1, 2, 3].filter(i => i !== a.q.correct);
+    a.q.half = rshuffle(wrong).slice(0, 2);
+  }
+  if (kind === 'shield') { if (!usesShield() || G.shield >= 100) return; G.shield = Math.min(100, G.shield + c.amount); floater('SHIELD +' + c.amount, W / 2, playBottom() - 40, '#39f3ff', 1.2); }
+  G.energy -= c.cost; G.powerUsed++;
+  SFX.power(); renderHud(); renderQuestion();
+}
+$('pFreeze').addEventListener('click', () => usePower('freeze'));
+$('pHalf').addEventListener('click', () => usePower('half'));
+$('pShield').addEventListener('click', () => usePower('shield'));
+
+function pauseGame() {
+  if (!G.running || G.paused) return;
+  G.paused = true; $('pauseModal').hidden = false; $('resumeBtn').focus();
+}
+function resumeGame() { if (!G.paused) return; G.paused = false; $('pauseModal').hidden = true; }
+$('pauseBtn').addEventListener('click', pauseGame);
+$('resumeBtn').addEventListener('click', resumeGame);
+$('restartBtn').addEventListener('click', () => { $('pauseModal').hidden = true; startGame(lastOpts); });
+$('quitBtn').addEventListener('click', () => {
+  $('pauseModal').hidden = true; G.paused = false;
+  if (G.mode === 'practice' && G.answered > 0) endGame('practice');
+  else { G.running = false; stopMusic(); show(G.mode === 'campaign' ? 'map' : 'setup'); }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+
+/* ---------- HUD + question panel ---------- */
+function renderHud() {
+  if (G.mode === 'campaign') $('hudTitle').textContent = `${PLANETS[G.planet].name.toUpperCase()} · WAVE ${G.wave}/${CONFIG.wavesPerPlanet}`;
+  else if (G.mode === 'daily') $('hudTitle').textContent = `DAILY · ${Math.min(CONFIG.daily.questions, G.answered + 1)}/${CONFIG.daily.questions}`;
+  else $('hudTitle').textContent = `${MODE_NAMES[G.mode].toUpperCase()} · ${TIER_NAMES[G.tier].toUpperCase()}`;
+  $('hudScore').textContent = G.score.toLocaleString();
+  const m = multiplier(); $('combo').hidden = m === 1; $('combo').textContent = '×' + m;
+  $('shieldFill').style.width = G.shield + '%'; $('shieldFill').classList.toggle('low', G.shield <= 30);
+  $('energyFill').style.width = G.energy + '%';
+  const meter = Math.min(G.streak, 10);
+  $('streakMeter').innerHTML = Array.from({ length: 10 }, (_, i) => `<i class="${i < meter ? 'on' : ''}"></i>`).join('');
+  const P = CONFIG.power, a = target();
+  $('pFreeze').disabled = G.energy < P.freeze.cost || G.freeze > 0;
+  $('pHalf').disabled = G.energy < P.half.cost || !a || !!a.q.half;
+  $('pShield').disabled = G.energy < P.shield.cost || G.shield >= 100;
+}
+
+const SHAPES = [
+  '<svg viewBox="0 0 16 16"><path d="M8 2l6 11H2z" fill="currentColor"/></svg>',
+  '<svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" fill="currentColor"/></svg>',
+  '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="currentColor"/></svg>',
+  '<svg viewBox="0 0 16 16"><path d="M8 1.5l6.5 6.5L8 14.5 1.5 8z" fill="currentColor"/></svg>',
+];
+function renderQuestion() {
+  const a = target();
+  const id = a ? a.id + ':' + a.q.text + ':' + (a.q.half || '') : null;
+  if (id === G.shownId) return;
+  G.shownId = id;
+  if (!a) {
+    $('qSubject').textContent = SUBJECT_NAMES[G.subject].toUpperCase();
+    $('qInfo').textContent = '';
+    $('qText').textContent = G.mode === 'campaign' ? 'Scanning for asteroids…' : 'Incoming…';
+    $('answers').innerHTML = '';
+    return;
+  }
+  $('qSubject').textContent = SUBJECT_NAMES[a.q.subject].toUpperCase();
+  $('qInfo').textContent = a.boss ? `BOSS · ${a.hits}/${CONFIG.bossHits} hits` : 'TARGET LOCKED';
+  $('qText').textContent = a.q.text;
+  $('answers').innerHTML = a.q.opts.map((o, i) => `<button class="ans" data-i="${i}" ${a.q.half && a.q.half.includes(i) ? 'disabled' : ''} aria-label="${i + 1}: ${esc(o)}"><span class="key">${SHAPES[i]}${i + 1}</span><span class="lbl">${esc(o)}</span></button>`).join('');
+  layout();
+}
+$('answers').addEventListener('click', e => { const b = e.target.closest('.ans'); if (b && !b.disabled) answer(+b.dataset.i); });
+
+/* ---------- End of mission ---------- */
+function endGame(reason) {
+  if (!G.running) return;
+  G.running = false; G.feedback = null;
+  stopMusic();
+  const acc = G.answered ? Math.round(G.correct / G.answered * 100) : 0;
+  const rank = acc >= 95 && G.answered >= 5 ? 'Legend' : acc >= 85 ? 'Gold' : acc >= 70 ? 'Silver' : 'Bronze';
+  const victory = reason === 'victory';
+  (victory || reason === 'daily' || reason === 'time' ? SFX.win : SFX.lose)();
+
+  // progress
+  const lvlBefore = levelFromXp(S.xp);
+  let xp = G.correct * CONFIG.xpPerCorrect + G.bestStreak * 2 + (victory ? CONFIG.xpPlanetClear : 0);
+  if (G.mode === 'practice') xp = Math.round(xp / 2);
+  S.xp += xp;
+  const st = S.stats;
+  st.correct += G.correct; st.answered += G.answered; st.bestStreak = Math.max(st.bestStreak, G.bestStreak);
+  st.perfectWaves += G.perfectWaves; st.bosses += G.bosses; st.powerups += G.powerUsed;
+  for (const k in G.subj) st.subj[k] = (st.subj[k] || 0) + G.subj[k];
+  if (G.mode === 'time') st.timeBest = Math.max(st.timeBest, G.correct);
+  if (victory) {
+    const order = ['Bronze', 'Silver', 'Gold', 'Legend'], prev = S.cleared[G.tier][G.planet];
+    if (!prev || order.indexOf(rank) > order.indexOf(prev)) S.cleared[G.tier][G.planet] = rank;
+    S.unlocked[G.tier] = Math.max(S.unlocked[G.tier], Math.min(5, G.planet + 2));
+  }
+  if (G.mode === 'daily' && reason === 'daily') { const k = todayKey() + G.tier; S.daily[k] = Math.max(S.daily[k] || 0, G.score); }
+  const fresh = checkAchievements();
+  save();
+
+  // summary screen
+  const titles = {
+    victory: `${PLANETS[G.planet].name} is safe!`, fail: 'Shield down!', time: "Time's up!",
+    daily: 'Daily Challenge complete', practice: 'Practice complete',
+  };
+  const subs = {
+    victory: G.planet < 4 ? `Next up: ${PLANETS[G.planet + 1].name}` : 'You defended the whole galaxy!',
+    fail: 'The planet took too many hits. Use power-ups and try again.',
+    time: `${G.correct} correct in ${CONFIG.timeAttack.seconds} seconds`,
+    daily: 'Come back tomorrow for a new set.', practice: 'Practice gives half XP. Try a mission next.',
+  };
+  $('sumTitle').textContent = titles[reason];
+  $('sumSub').textContent = subs[reason];
+  $('sumRank').className = 'rankbadge r-' + rank; $('sumRank').textContent = rank.toUpperCase();
+  $('sumScore').textContent = G.score.toLocaleString();
+  $('sumAcc').textContent = acc + '%';
+  $('sumStreak').textContent = G.bestStreak;
+  $('sumTime').textContent = `${Math.floor(G.elapsed / 60)}:${String(Math.floor(G.elapsed % 60)).padStart(2, '0')}`;
+  renderPilot('s', xp);
+  const lvlAfter = levelFromXp(S.xp);
+  if (lvlAfter > lvlBefore) $('sXpText').textContent += ` · LEVEL UP!`;
+  $('sumAchCard').hidden = !fresh.length;
+  $('sumAch').innerHTML = fresh.map(a => `<span>${a.name}</span>`).join('');
+  const lb = S.leaderboard;
+  const qualifies = G.mode !== 'practice' && G.score > 0 && (lb.length < 10 || G.score > lb[lb.length - 1].score);
+  $('lbForm').hidden = !qualifies; $('nick').value = S.nickname || ''; $('nickErr').textContent = '';
+  $('nextPlanetBtn').hidden = !(victory && G.planet < 4);
+  show('summary');
+}
+
+$('againBtn').addEventListener('click', () => startGame(lastOpts));
+$('nextPlanetBtn').addEventListener('click', () => startGame({ ...lastOpts, planet: lastOpts.planet + 1 }));
+
+const BLOCKED = ['fuck', 'shit', 'bitch', 'dick', 'cunt', 'piss', 'slut', 'whore', 'nigg', 'fag', 'porn', 'sex', 'rape', 'nazi', 'cock', 'wank'];
+const BLOCKED_EXACT = ['ass', 'butt', 'damn', 'crap', 'poo', 'poop', 'arse', 'kill', 'die'];
+$('lbForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('nick').value.trim();
+  if (!/^[A-Za-z0-9]{1,12}$/.test(name)) { $('nickErr').textContent = 'Use 1 to 12 letters or numbers, no spaces.'; return; }
+  const low = name.toLowerCase();
+  if (BLOCKED.some(w => low.includes(w)) || BLOCKED_EXACT.includes(low)) { $('nickErr').textContent = 'Please choose a different nickname.'; return; }
+  S.nickname = name;
+  S.leaderboard.push({ name, score: G.score, mode: G.mode, tier: G.tier, date: todayKey() });
+  S.leaderboard.sort((a, b) => b.score - a.score); S.leaderboard = S.leaderboard.slice(0, 10);
+  save(); $('lbForm').hidden = true; SFX.power(); show('leaderboard');
+});
+
+/* =================================================================
+   Canvas rendering
+   ================================================================= */
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, hudH = 0, panelH = 0;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  layout();
+}
+function layout() {
+  hudH = screen === 'game' ? $('g-hud').getBoundingClientRect().height : 0;
+  panelH = screen === 'game' ? $('g-panel').getBoundingClientRect().height : 0;
+}
+addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(layout).observe($('g-panel'));
+const playTop = () => hudH + 10;
+const playBottom = () => H - panelH - 34;
+const scale = () => Math.max(0.65, Math.min(1.25, Math.min(W, playBottom() - playTop()) / 520));
+const toScreen = a => ({ x: a.x * W, y: playTop() + a.y * (playBottom() - playTop()) });
+const motionOK = () => !S.settings.reduceMotion;
+
+function laserColor(t = performance.now() / 1000) {
+  const c = LASERS.find(l => l.id === S.laser).color;
+  return c === 'rainbow' ? `hsl(${(t * 240) % 360} 100% 65%)` : c;
+}
+function shipColor(t = performance.now() / 1000) {
+  const c = SHIPS.find(s => s.id === S.ship).color;
+  return c === 'rainbow' ? `hsl(${(t * 120) % 360} 100% 65%)` : c;
+}
+function burst(x, y, n, color) {
+  const count = motionOK() ? n : Math.ceil(n / 4);
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 280;
+    G.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, decay: 0.8 + Math.random() * 1.2, size: 1.5 + Math.random() * 3, color });
+  }
+}
+function floater(text, x, y, color, life = 1) { G.floaters.push({ text, x, y, color, life, max: life }); }
+function shakeIt(n) { if (motionOK()) G.shake = Math.max(G.shake, n); }
+function fireLaser(x, y) { G.lasers.push({ x, y, life: 0.25 }); G.aimAngle = Math.atan2(y - shipPos().y, x - shipPos().x); }
+const shipPos = () => ({ x: W / 2, y: playBottom() + 4 });
+
+// star layers for parallax
+const STAR_LAYERS = [0.15, 0.35, 0.7].map(depth => ({ depth, stars: Array.from({ length: Math.round(90 / (depth * 2 + 0.5)) }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.3 })) }));
+
+function drawBackground(dt, t) {
+  ctx.fillStyle = '#060918'; ctx.fillRect(0, 0, W, H);
+  const theme = screen === 'game' && G.mode === 'campaign' ? PLANETS[G.planet] : PLANETS[4];
+  const neb = ctx.createRadialGradient(W * 0.2, H * 0.25, 0, W * 0.2, H * 0.25, Math.max(W, H) * 0.6);
+  neb.addColorStop(0, theme.color + '22'); neb.addColorStop(1, 'transparent');
+  ctx.fillStyle = neb; ctx.fillRect(0, 0, W, H);
+  const neb2 = ctx.createRadialGradient(W * 0.85, H * 0.6, 0, W * 0.85, H * 0.6, Math.max(W, H) * 0.5);
+  neb2.addColorStop(0, '#ff3df21a'); neb2.addColorStop(1, 'transparent');
+  ctx.fillStyle = neb2; ctx.fillRect(0, 0, W, H);
+  for (const L of STAR_LAYERS) {
+    ctx.fillStyle = `rgba(220,230,255,${0.35 + L.depth * 0.6})`;
+    for (const s of L.stars) {
+      if (motionOK() && !(G.running && (G.paused || G.feedback))) { s.y += L.depth * 0.03 * dt; if (s.y > 1) { s.y -= 1; s.x = Math.random(); } }
+      ctx.fillRect(s.x * W, s.y * H, s.r * (1 + L.depth), s.r * (1 + L.depth));
+    }
+  }
+}
+
+function drawPlanet(t) {
+  const p = G.mode === 'campaign' ? PLANETS[G.planet] : PLANETS[0];
+  const R = Math.max(W * 0.9, 700), cx = W / 2, top = playBottom() + 18, cy = top + R;
+  const g = ctx.createRadialGradient(cx - R * 0.2, top + 30, 10, cx, cy, R);
+  g.addColorStop(0, p.color); g.addColorStop(0.08, p.dark); g.addColorStop(1, '#000');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+  // shield arc
+  const sh = usesShield() ? G.shield / 100 : 1;
+  const col = sh > 0.3 ? '57,243,255' : '255,77,109';
+  ctx.save();
+  ctx.strokeStyle = `rgba(${col},${0.25 + 0.55 * sh})`; ctx.lineWidth = 3 + 3 * sh;
+  ctx.shadowColor = `rgba(${col},1)`; ctx.shadowBlur = 18 * sh;
+  ctx.beginPath(); ctx.arc(cx, cy, R + 22, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+  ctx.restore();
+}
+
+function drawShip(t) {
+  const { x, y } = shipPos(), s = 18 * scale();
+  const a = G.aimAngle + Math.PI / 2;
+  const col = shipColor(t);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+  ctx.shadowColor = col; ctx.shadowBlur = 16;
+  ctx.fillStyle = '#0d1230'; ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(0, -s * 1.5); ctx.lineTo(s, s * 0.8); ctx.lineTo(0, s * 0.35); ctx.lineTo(-s, s * 0.8); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, -s * 0.2, s * 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // ease aim back to straight up
+  G.aimAngle += (-Math.PI / 2 - G.aimAngle) * 0.02;
+}
+
+function drawAsteroid(a, isTarget, t) {
+  const { x, y } = toScreen(a), r = a.r * scale();
+  ctx.save(); ctx.translate(x, y);
+  if (isTarget) {
+    ctx.save(); ctx.rotate(motionOK() ? t * 1.5 : 0);
+    ctx.strokeStyle = a.boss ? '#ffb627' : '#39f3ff'; ctx.lineWidth = 2; ctx.setLineDash([8, 7]);
+    ctx.beginPath(); ctx.arc(0, 0, r + 12 + Math.sin(t * 5) * 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.rotate(a.rot);
+  ctx.globalAlpha = isTarget ? 1 : 0.65;
+  if (a.boss) { ctx.shadowColor = '#ff3df2'; ctx.shadowBlur = 30; }
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r * 1.1);
+  g.addColorStop(0, a.boss ? '#9b5bd4' : '#8d86a8'); g.addColorStop(1, a.boss ? '#3b0f4d' : '#2c2840');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  a.shape.forEach((k, i) => { const ang = i / a.shape.length * Math.PI * 2; ctx.lineTo(Math.cos(ang) * r * k, Math.sin(ang) * r * k); });
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  for (const c of a.craters) { ctx.beginPath(); ctx.arc(Math.cos(c.a) * c.d * r, Math.sin(c.a) * c.d * r, c.s * r, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  if (a.boss) {
+    for (let i = 0; i < CONFIG.bossHits; i++) {
+      ctx.fillStyle = i < a.hits ? '#ffb627' : 'rgba(255,255,255,.2)';
+      ctx.fillRect(x - 30 + i * 22, y - r - 22, 16, 6);
+    }
+    ctx.font = '700 12px Orbitron, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffb627';
+    ctx.fillText('BOSS', x, y - r - 30);
+  }
+}
+
+function update(dt, t) {
+  // effects run on every screen
+  G.particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; p.life -= p.decay * dt; });
+  G.particles = G.particles.filter(p => p.life > 0);
+  G.floaters.forEach(f => { f.y -= 30 * dt; f.life -= dt; });
+  G.floaters = G.floaters.filter(f => f.life > 0);
+  G.lasers.forEach(l => l.life -= dt); G.lasers = G.lasers.filter(l => l.life > 0);
+  G.shake = Math.max(0, G.shake - dt * 40);
+  if (G.banner) { G.banner.life -= dt; if (G.banner.life <= 0) G.banner = null; }
+
+  if (!G.running || G.paused) return;
+  if (G.feedback) {
+    G.feedback.auto -= dt;
+    if (G.feedback.auto <= 0) continueFeedback();
+    return;
+  }
+  G.elapsed += dt;
+
+  if (G.mode === 'time') {
+    G.timeLeft -= dt;
+    $('timer').textContent = Math.max(0, Math.ceil(G.timeLeft));
+    if (G.timeLeft <= 0) { endGame('time'); return; }
+  }
+
+  if (G.freeze > 0) { G.freeze = Math.max(0, G.freeze - dt); if (G.freeze === 0) renderHud(); }
+  else {
+    for (const a of [...G.asteroids]) {
+      a.y += a.speed * dt; a.rot += a.vr * dt;
+      if (G.mode === 'practice') a.y = Math.min(a.y, 0.5);
+      if (a.y >= 1) { impact(a); return; }
+    }
+  }
+
+  // spawning (waits while frozen)
+  if (G.freeze === 0 && G.spawnLeft > 0 && G.asteroids.length < maxAlive()) {
+    G.spawnTimer -= dt;
+    if (!G.asteroids.length) G.spawnTimer = Math.min(G.spawnTimer, 0.5);
+    if (G.spawnTimer <= 0) {
+      spawn(); G.spawnLeft--;
+      G.spawnTimer = G.mode === 'time' ? CONFIG.timeAttack.gap : CONFIG.spawnGap;
+      renderQuestion(); renderHud();
+    }
+  }
+
+  // wave / mission complete
+  if (G.spawnLeft === 0 && !G.asteroids.length) {
+    if (G.mode === 'daily') { endGame('daily'); return; }
+    if (G.mode === 'campaign') {
+      if (G.waveMistakes === 0 && G.waveAnswered > 0) { G.perfectWaves++; floater('PERFECT WAVE!', W / 2, playTop() + 120, '#b6ff3b', 1.8); G.score += 500; }
+      if (G.wave >= CONFIG.wavesPerPlanet) { endGame('victory'); return; }
+      nextWave(); renderQuestion();
+    }
+  }
+}
+
+function draw(dt, t) {
+  ctx.save();
+  if (G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+  drawBackground(dt, t);
+  if (screen === 'game') {
+    drawPlanet(t);
+    G.asteroids.forEach((a, i) => drawAsteroid(a, i === 0, t));
+    // lasers
+    const sp = shipPos();
+    for (const l of G.lasers) {
+      ctx.save(); ctx.globalAlpha = l.life / 0.25;
+      ctx.strokeStyle = laserColor(t); ctx.lineWidth = 4; ctx.shadowColor = laserColor(t); ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.moveTo(sp.x, sp.y - 20); ctx.lineTo(l.x, l.y); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+    }
+    drawShip(t);
+    if (G.freeze > 0) {
+      ctx.fillStyle = `rgba(150,220,255,${0.08 + 0.04 * Math.sin(t * 6)})`; ctx.fillRect(0, 0, W, H);
+      ctx.font = '700 14px Orbitron, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#bfefff';
+      ctx.fillText(`FROZEN ${G.freeze.toFixed(1)}s`, W / 2, playTop() + 24);
+    }
+  }
+  for (const p of G.particles) {
+    ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const f of G.floaters) {
+    ctx.globalAlpha = Math.min(1, f.life / f.max * 2);
+    ctx.font = `900 ${Math.round(18 * scale())}px Orbitron, sans-serif`;
+    ctx.fillStyle = f.color; ctx.shadowColor = f.color; ctx.shadowBlur = 12;
+    ctx.fillText(f.text, Math.max(80, Math.min(W - 80, f.x)), f.y);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+  if (screen === 'game' && G.banner) {
+    const b = G.banner, a = Math.min(1, b.life * 2, (2.2 - b.life) * 4);
+    const cy = playTop() + (playBottom() - playTop()) * 0.38;
+    ctx.globalAlpha = a;
+    ctx.font = `900 ${Math.round(Math.min(W / 11, 52))}px Orbitron, sans-serif`;
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#39f3ff'; ctx.shadowBlur = 24;
+    ctx.fillText(b.text, W / 2, cy);
+    ctx.shadowBlur = 0; ctx.font = `500 ${Math.round(Math.min(W / 26, 18))}px Inter, sans-serif`; ctx.fillStyle = '#9aa3d6';
+    ctx.fillText(b.sub || '', W / 2, cy + 40);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = now / 1000;
+  update(dt, t);
+  draw(dt, t);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Keyboard ---------- */
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'm') { audio(); muted = !muted; applyVolumes(); return; }
+  if (screen !== 'game') return;
+  if (k === 'p' || k === 'escape') { G.paused ? resumeGame() : pauseGame(); e.preventDefault(); return; }
+  if (G.paused) return;
+  if (G.feedback && (k === 'enter' || k === ' ')) { continueFeedback(); e.preventDefault(); return; }
+  if (['1', '2', '3', '4'].includes(k)) { answer(+k - 1); e.preventDefault(); }
+  if (k === 'f') usePower('freeze');
+  if (k === 'h') usePower('half');
+  if (k === 's') usePower('shield');
+});
+
+resize();
+show('title');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

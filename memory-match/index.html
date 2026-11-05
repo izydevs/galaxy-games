@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Memory Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header bar, then either the level menu or a centred card grid; a win panel on top */
+  :root {
+    --bg: #e8f6ff; --ink: #23305e; --card: #ffffff; --muted: #5b6796;
+    --accent: #ff7a59; --back: #4b6cf0; --back-2: #7b93ff; --match: #3ec6a8;
+    --font: "Fredoka", "Comic Sans MS", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 4px solid var(--accent); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .top h1 { flex: 1; margin: 0; font-size: clamp(24px, 5vw, 36px); text-align: center; }
+  .round { width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--card); color: var(--ink); display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0,0,0,.12); flex: none; }
+  .round svg { width: 26px; height: 26px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); }
+  .panel { background: var(--card); border-radius: 28px; padding: 24px 20px; box-shadow: 0 6px 0 rgba(0,0,0,.08); text-align: center; display: flex; flex-direction: column; gap: 14px; }
+  .panel p { margin: 0; font-size: 20px; color: var(--muted); }
+  .big { min-height: 66px; border: none; border-radius: 999px; padding: 10px 24px; font-size: 24px; font-weight: 700; color: #fff; background: var(--accent); box-shadow: 0 5px 0 rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .big small { font-size: 16px; font-weight: 600; opacity: .95; }
+  .lv-easy { background: #20a866; } .lv-medium { background: #ef8a14; } .lv-hard { background: #e0457a; }
+  .stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat { background: var(--card); border-radius: 999px; padding: 8px 18px; font-size: 20px; font-weight: 600; box-shadow: 0 3px 0 rgba(0,0,0,.08); font-variant-numeric: tabular-nums; }
+  .grid { display: grid; gap: clamp(6px, 1.6vw, 12px); margin: 0 auto; }
+  .card { aspect-ratio: 3 / 4; border: none; padding: 0; background: none; perspective: 700px; min-width: 0; max-width: 100%; }
+  .inner { position: relative; width: 100%; height: 100%; transition: transform .35s; transform-style: preserve-3d; }
+  .card.up .inner, .card.done .inner { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; border-radius: 16px; display: grid; place-items: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 4px 0 rgba(0,0,0,.14); }
+  .back { background: repeating-linear-gradient(45deg, var(--back), var(--back) 10px, var(--back-2) 10px, var(--back-2) 20px); }
+  .back::after { content: "?"; color: #fff; font-size: clamp(26px, 6vw, 40px); font-weight: 700; }
+  .front { background: #fff; transform: rotateY(180deg); font-size: clamp(30px, 8vw, 56px); }
+  .card.done .front { background: #dcfaf2; box-shadow: 0 0 0 4px var(--match); }
+  .stars { display: flex; justify-content: center; gap: 8px; }
+  .stars svg { width: 64px; height: 64px; }
+  .confetti { position: fixed; top: -12px; width: 10px; height: 14px; pointer-events: none; animation: fall 2.4s linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) { .inner { transition: none; } .confetti { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="round" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>Memory Match</h1>
+  <button class="round" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <section class="panel" id="menu">
+    <p>Flip two cards. Find all the animal pairs!</p>
+    <button class="big lv-easy" data-level="easy">Easy <small>6 pairs · <span data-best="easy"></span></small></button>
+    <button class="big lv-medium" data-level="medium">Medium <small>8 pairs · <span data-best="medium"></span></small></button>
+    <button class="big lv-hard" data-level="hard">Hard <small>10 pairs · <span data-best="hard"></span></small></button>
+  </section>
+
+  <section id="game" hidden>
+    <div class="stats">
+      <span class="stat">Moves: <b id="moves">0</b></span>
+      <span class="stat">Pairs: <b id="pairs">0</b></span>
+      <span class="stat">Time: <b id="time">0:00</b></span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="panel" id="win" hidden>
+    <h2 style="margin:0;font-size:36px" id="winTitle">You found them all!</h2>
+    <div class="stars" id="winStars"></div>
+    <p id="winText"></p>
+    <button class="big lv-easy" id="again">Play again</button>
+    <button class="big" style="background:#4b6cf0" id="levels">Choose level</button>
+  </section>
+</main>
+
+<script>
+/* ---------- Settings you can change ---------- */
+const ANIMALS = [['🐶', 'dog'], ['🐱', 'cat'], ['🦁', 'lion'], ['🐸', 'frog'], ['🐵', 'monkey'], ['🐼', 'panda'], ['🐧', 'penguin'], ['🦊', 'fox'], ['🐰', 'rabbit'], ['🐯', 'tiger'], ['🐨', 'koala'], ['🐮', 'cow']];
+const LEVELS = { easy: { pairs: 6, cols: 4 }, medium: { pairs: 8, cols: 4 }, hard: { pairs: 10, cols: 5 } };
+const FLIP_BACK_MS = 900;
+
+/* ---------- Shared helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.2, type = 'triangle', v = 0.15, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const sfx = { flip: () => tone(520, 0.08, 'sine', 0.08), good: () => { tone(784, 0.18); tone(1175, 0.25, 'triangle', 0.12, 0.08); }, bad: () => tone(260, 0.25, 'sine', 0.12), win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.14, i * 0.13)) };
+function say(t) { try { if (muted || !('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(t); u.rate = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+function confetti() { for (let i = 0; i < 70; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.background = ['#ff7a59', '#ffd23f', '#3ec6a8', '#4b6cf0', '#ff6fae'][i % 5]; c.style.animationDelay = Math.random() * 0.8 + 's'; document.body.appendChild(c); setTimeout(() => c.remove(), 3400); } }
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const STAR = on => `<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6z" fill="${on ? '#ffc21a' : '#e3e6f0'}" stroke="${on ? '#e09a00' : '#cfd3e3'}" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+/* ---------- Game ---------- */
+let level = 'easy', first = null, lock = false, moves = 0, found = 0, startTime = 0, timer = null;
+
+function showBest() {
+  document.querySelectorAll('[data-best]').forEach(el => { const b = store.get('memoryMatch.best.' + el.dataset.best, null); el.textContent = b ? `Best: ${b} moves` : 'Not played yet'; });
+}
+function show(id) { ['menu', 'game', 'win'].forEach(s => $(s).hidden = s !== id); if (id === 'menu') showBest(); }
+
+function start(lv) {
+  level = lv; first = null; lock = false; moves = 0; found = 0; startTime = 0;
+  clearInterval(timer); $('time').textContent = '0:00';
+  const { pairs, cols } = LEVELS[lv];
+  const picks = shuffle([...ANIMALS]).slice(0, pairs);
+  const deck = shuffle([...picks, ...picks]);
+  const grid = $('grid');
+  grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  grid.style.maxWidth = cols * 120 + 'px';
+  grid.innerHTML = deck.map(([emoji, name], i) => `<button class="card" data-name="${name}" aria-label="Hidden card ${i + 1}"><div class="inner"><div class="face back"></div><div class="face front">${emoji}</div></div></button>`).join('');
+  updateStats(); show('game');
+}
+
+function updateStats() { $('moves').textContent = moves; $('pairs').textContent = `${found}/${LEVELS[level].pairs}`; }
+function tick() { const s = Math.floor((Date.now() - startTime) / 1000); $('time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+
+$('grid').addEventListener('click', e => {
+  const card = e.target.closest('.card');
+  if (!card || lock || card.classList.contains('up') || card.classList.contains('done')) return;
+  if (!startTime) { startTime = Date.now(); timer = setInterval(tick, 500); }
+  card.classList.add('up'); card.setAttribute('aria-label', card.dataset.name); sfx.flip();
+  if (!first) { first = card; return; }
+  moves++;
+  const a = first, b = card; first = null;
+  if (a.dataset.name === b.dataset.name) {
+    a.classList.add('done'); b.classList.add('done'); found++; sfx.good(); say(a.dataset.name);
+    updateStats();
+    if (found === LEVELS[level].pairs) setTimeout(finish, 600);
+  } else {
+    lock = true; updateStats();
+    setTimeout(() => { sfx.bad(); [a, b].forEach(c => { c.classList.remove('up'); c.setAttribute('aria-label', 'Hidden card'); }); lock = false; }, FLIP_BACK_MS);
+  }
+});
+
+function finish() {
+  clearInterval(timer); tick();
+  const p = LEVELS[level].pairs, stars = moves <= p + 2 ? 3 : moves <= Math.round(p * 1.6) ? 2 : 1;
+  const best = store.get('memoryMatch.best.' + level, null);
+  const isBest = !best || moves < best; if (isBest) store.set('memoryMatch.best.' + level, moves);
+  $('winTitle').textContent = stars === 3 ? 'Amazing memory!' : stars === 2 ? 'Great job!' : 'You did it!';
+  $('winStars').innerHTML = [0, 1, 2].map(i => STAR(i < stars)).join('');
+  $('winText').textContent = `${moves} moves in ${$('time').textContent}.` + (isBest ? ' New best!' : ` Best: ${best} moves.`);
+  sfx.win(); confetti(); show('win'); $('again').focus();
+}
+
+document.querySelectorAll('[data-level]').forEach(b => b.onclick = () => start(b.dataset.level));
+$('again').onclick = () => start(level);
+$('levels').onclick = () => show('menu');
+show('menu');
+</script>
+</body>
+</html>

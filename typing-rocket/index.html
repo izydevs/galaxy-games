@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Typing Rocket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@600;700&display=swap">
+<style>
+  /* Layout: header, stats strip, a tall sky field where words fall, the typing box pinned under it */
+  :root {
+    --bg: #120a24; --panel: #1e1438; --line: #3a2a66; --text: #f3eeff; --muted: #b3a6d9;
+    --accent: #ff9f1c; --typed: #3ee0c4; --danger: #ff4d6d;
+    --display: "Orbitron", "Arial Black", sans-serif; --body: "Inter", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--body); -webkit-tap-highlight-color: transparent; }
+  button, input { font-family: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .top h1 { flex: 1; margin: 0; font-family: var(--display); font-size: clamp(20px, 4.5vw, 28px); text-align: center; letter-spacing: .06em; }
+  .icon { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); display: grid; place-items: center; flex: none; }
+  .icon svg { width: 20px; height: 20px; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 10px; }
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; font-size: 14px; color: var(--muted); }
+  .stat b { color: var(--text); font-family: var(--display); font-size: 16px; margin-left: 4px; }
+  .lives { margin-left: auto; color: var(--danger); font-size: 20px; letter-spacing: 3px; }
+  .field { position: relative; height: clamp(300px, 52vh, 520px); border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+    background: radial-gradient(1px 1px at 20% 30%, #fff8, transparent), radial-gradient(1px 1px at 70% 60%, #fff6, transparent), radial-gradient(1.5px 1.5px at 40% 80%, #fff7, transparent), radial-gradient(1px 1px at 85% 15%, #fff8, transparent), linear-gradient(180deg, #1b0f3a, #2d1650 70%, #4a1d4f); }
+  .ground { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: linear-gradient(90deg, var(--danger), var(--accent)); opacity: .7; }
+  .word { position: absolute; transform: translateX(-50%); font-family: var(--mono); font-weight: 700; font-size: clamp(16px, 3vw, 22px); padding: 4px 10px; border-radius: 8px; background: rgba(12,6,28,.8); border: 1px solid #5a4590; white-space: nowrap; }
+  .word .done { color: var(--typed); }
+  .word.target { border-color: var(--typed); box-shadow: 0 0 12px rgba(62,224,196,.5); }
+  .boom { position: absolute; transform: translate(-50%, -50%); font-family: var(--display); color: var(--accent); font-size: 16px; pointer-events: none; animation: rise .7s ease-out forwards; }
+  @keyframes rise { to { transform: translate(-50%, -160%); opacity: 0; } }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 16px; background: rgba(12,6,28,.82); overflow-y: auto; }
+  .overlay h2 { margin: 0; font-family: var(--display); font-size: clamp(22px, 5vw, 32px); }
+  .overlay p { margin: 0; color: var(--muted); max-width: 46ch; }
+  .lvbtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 520px; }
+  .lvbtn { min-height: 64px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px; }
+  .lvbtn small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .lvbtn:hover { border-color: var(--accent); }
+  .typebox { display: flex; gap: 8px; }
+  .typebox input { flex: 1; min-width: 0; min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: #0d0720; color: var(--text); font-family: var(--mono); font-size: 22px; padding: 0 16px; }
+  .typebox input.bad { border-color: var(--danger); animation: shake .3s; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .pausebtn { min-width: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); display: grid; place-items: center; }
+  .pausebtn svg { width: 20px; height: 20px; }
+  .note { margin: 0; color: var(--muted); font-size: 13px; text-align: center; }
+  .res { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 420px; }
+  .res div { background: var(--panel); border-radius: 10px; padding: 8px; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; }
+  .res b { font-family: var(--display); color: var(--text); font-size: 22px; }
+  @media (prefers-reduced-motion: reduce) { .boom { animation: none; display: none; } .typebox input.bad { animation: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="icon" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>TYPING ROCKET</h1>
+  <button class="icon" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <div class="stats">
+    <span class="stat">Score<b id="score">0</b></span>
+    <span class="stat">Speed<b id="wpm">0</b> wpm</span>
+    <span class="stat">Accuracy<b id="acc">100%</b></span>
+    <span class="lives" id="lives" aria-label="Lives">♥♥♥</span>
+  </div>
+  <div class="field" id="field">
+    <div class="ground"></div>
+    <div class="overlay" id="menu">
+      <h2>Type to launch!</h2>
+      <p>Meteor words are falling. Type a word to blast it before it reaches the ground. You have 3 lives.</p>
+      <div class="lvbtns">
+        <button class="lvbtn" data-level="starter">Starter<small>short words</small><small data-best="starter"></small></button>
+        <button class="lvbtn" data-level="explorer">Explorer<small>longer words</small><small data-best="explorer"></small></button>
+        <button class="lvbtn" data-level="expert">Expert<small>science words</small><small data-best="expert"></small></button>
+      </div>
+    </div>
+    <div class="overlay" id="paused" hidden><h2>Paused</h2><p>Tap the box below or press Esc to keep going.</p></div>
+    <div class="overlay" id="over" hidden>
+      <h2 id="overTitle">Mission over</h2>
+      <div class="res"><div>Score<b id="rScore">0</b></div><div>WPM<b id="rWpm">0</b></div><div>Accuracy<b id="rAcc">0%</b></div></div>
+      <p id="overText"></p>
+      <div class="lvbtns">
+        <button class="lvbtn" data-level="starter">Starter</button>
+        <button class="lvbtn" data-level="explorer">Explorer</button>
+        <button class="lvbtn" data-level="expert">Expert</button>
+      </div>
+    </div>
+  </div>
+  <div class="typebox">
+    <input id="input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type here…" aria-label="Type the falling words">
+    <button class="pausebtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+  </div>
+  <p class="note">Words clear as soon as you finish typing them, no Enter needed. Esc pauses.</p>
+</main>
+
+<script>
+/* ---------- Word lists you can change ---------- */
+const LISTS = {
+  starter: 'cat sun map red run big top hat jump fish frog tree star moon blue cake ship lamp milk door rain wind kite bird game play book desk ball nest bus cup dog egg fan gum hen ink jam key leg mud net owl pen pig rug sock toy van web yak zip bell coin duck fork gift hill lake nose park ring sand tent wolf yarn'.split(' '),
+  explorer: 'planet rocket garden silver puzzle dragon jungle castle bridge window rabbit pencil orange monkey island marble guitar galaxy crystal thunder library volcano dolphin compass pyramid lantern blanket chimney penguin rainbow tornado diamond kingdom balloon captain journey mystery feather harvest picnic shadow lizard meadow canyon glacier'.split(' '),
+  expert: 'telescope satellite astronaut equation hypothesis electricity ecosystem magnetism continent atmosphere vocabulary chlorophyll temperature triangle molecule gravity photosynthesis parallelogram microscope evaporation condensation fraction percentage velocity skeleton nutrient experiment geography civilization democracy algorithm circumference hemisphere invertebrate'.split(' '),
+};
+const SETTINGS = { starter: { speed: 32, gap: 2.2 }, explorer: { speed: 30, gap: 2.6 }, expert: { speed: 26, gap: 3.0 } }; // px per second, seconds between words
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.1, type = 'square', v = 0.05, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+/* ---------- Game ---------- */
+let level = 'starter', words = [], running = false, paused = false, lives = 3, score = 0, cleared = 0;
+let spawnT = 0, elapsed = 0, keysGood = 0, keysAll = 0, charsDone = 0, lastWord = '';
+
+function showBest() { document.querySelectorAll('[data-best]').forEach(el => { const b = store.get('typingRocket.best.' + el.dataset.best, 0); el.textContent = b ? `Best: ${b}` : ''; }); }
+showBest();
+
+function start(lv) {
+  level = lv; words.forEach(w => w.el.remove()); words = [];
+  running = true; paused = false; lives = 3; score = 0; cleared = 0; spawnT = 0.3; elapsed = 0; keysGood = 0; keysAll = 0; charsDone = 0;
+  $('menu').hidden = true; $('over').hidden = true; $('paused').hidden = true;
+  $('input').value = ''; $('input').focus(); hud();
+}
+
+function spawn() {
+  const list = LISTS[level];
+  let text; do { text = list[Math.floor(Math.random() * list.length)]; } while ((text === lastWord || words.some(w => w.text[0] === text[0])) && list.length > 30 && Math.random() < 0.9);
+  lastWord = text;
+  const el = document.createElement('div');
+  el.className = 'word';
+  el.innerHTML = esc(text);
+  $('field').insertBefore(el, $('menu'));
+  const fw = $('field').clientWidth, ew = el.offsetWidth;
+  const x = ew / 2 + 8 + Math.random() * Math.max(1, fw - ew - 16);
+  words.push({ text, el, x, y: -30 });
+  el.style.left = x + 'px';
+}
+
+function hud() {
+  $('score').textContent = score;
+  $('lives').textContent = '♥'.repeat(lives) + '♡'.repeat(3 - lives);
+  const min = elapsed / 60;
+  $('wpm').textContent = min > 0.05 ? Math.round(charsDone / 5 / min) : 0;
+  $('acc').textContent = keysAll ? Math.round(keysGood / keysAll * 100) + '%' : '100%';
+}
+
+function target(typed) {
+  if (!typed) return null;
+  return words.filter(w => w.text.startsWith(typed)).sort((a, b) => b.y - a.y)[0] || null;
+}
+
+$('input').addEventListener('input', e => {
+  if (!running || paused) { e.target.value = ''; return; }
+  const typed = e.target.value.trim().toLowerCase();
+  if (e.inputType && e.inputType.startsWith('insert')) {
+    keysAll++;
+    if (target(typed)) keysGood++;
+    else { tone(160, 0.08, 'sawtooth', 0.04); e.target.classList.remove('bad'); void e.target.offsetWidth; e.target.classList.add('bad'); }
+  }
+  const t = target(typed);
+  words.forEach(w => { w.el.classList.toggle('target', w === t); w.el.innerHTML = w === t ? `<span class="done">${esc(typed)}</span>${esc(w.text.slice(typed.length))}` : esc(w.text); });
+  if (t && typed === t.text) blast(t);
+  hud();
+});
+
+function blast(w) {
+  words.splice(words.indexOf(w), 1);
+  const b = document.createElement('div');
+  b.className = 'boom'; b.textContent = `+${w.text.length * 10}`;
+  b.style.left = w.x + 'px'; b.style.top = w.y + 'px';
+  $('field').appendChild(b); setTimeout(() => b.remove(), 800);
+  w.el.remove();
+  score += w.text.length * 10; cleared++; charsDone += w.text.length + 1;
+  tone(880, 0.08, 'triangle', 0.08); tone(1320, 0.1, 'triangle', 0.06, 0.05);
+  $('input').value = '';
+  words.forEach(o => { o.el.classList.remove('target'); o.el.innerHTML = esc(o.text); });
+}
+
+function loseLife(w) {
+  words.splice(words.indexOf(w), 1); w.el.remove();
+  lives--; tone(110, 0.4, 'sawtooth', 0.08);
+  $('field').animate?.([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], { duration: 250 });
+  if (lives <= 0) end();
+}
+
+function end() {
+  running = false;
+  const best = store.get('typingRocket.best.' + level, 0);
+  if (score > best) store.set('typingRocket.best.' + level, score);
+  $('rScore').textContent = score; $('rWpm').textContent = $('wpm').textContent; $('rAcc').textContent = $('acc').textContent;
+  $('overTitle').textContent = score > best ? 'New best score!' : 'Mission over';
+  $('overText').textContent = `You blasted ${cleared} words. Pick a level to fly again.`;
+  $('over').hidden = false; showBest();
+}
+
+function togglePause() {
+  if (!running) return;
+  paused = !paused; $('paused').hidden = !paused;
+  if (!paused) $('input').focus();
+}
+$('pauseBtn').onclick = togglePause;
+$('input').addEventListener('focus', () => { if (paused) togglePause(); });
+addEventListener('keydown', e => { if (e.key === 'Escape') togglePause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && running && !paused) togglePause(); });
+document.querySelectorAll('[data-level]').forEach(b => b.onclick = () => start(b.dataset.level));
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (running && !paused) {
+    elapsed += dt;
+    const ramp = 1 + cleared * 0.025, S = SETTINGS[level];
+    spawnT -= dt;
+    if (spawnT <= 0) { spawn(); spawnT = Math.max(0.9, S.gap / ramp); }
+    const h = $('field').clientHeight;
+    for (const w of [...words]) {
+      w.y += S.speed * ramp * dt;
+      w.el.style.top = w.y + 'px';
+      if (w.y > h - 30) loseLife(w);
+      if (!running) break;
+    }
+    if (!running) words.forEach(w => w.el.remove());
+    hud();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

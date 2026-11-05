@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Word Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header, mode switch, 6x5 tile board, clue line, on-screen keyboard pinned under it */
+  :root {
+    --bg: #0f1020; --panel: #1b1d36; --line: #34386a; --text: #eef0ff; --muted: #9ea3cf;
+    --hit: #2fb36a; --near: #e0a526; --miss: #3a3d5c; --accent: #ff8a3d;
+    --display: "Orbitron", "Arial Black", sans-serif; --body: "Inter", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  body.contrast { --hit: #f5793a; --near: #85c0f9; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--body); -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .top h1 { flex: 1; margin: 0; font-family: var(--display); font-size: clamp(20px, 4.5vw, 28px); text-align: center; letter-spacing: .06em; }
+  .icon { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); display: grid; place-items: center; flex: none; }
+  .icon svg { width: 20px; height: 20px; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 12px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mode { min-height: 44px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 10px; font-weight: 600; }
+  .mode[aria-pressed="true"] { color: var(--text); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 6px; width: min(100%, 330px); margin: 0 auto; }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .row.shake { animation: shake .4s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  .tile { aspect-ratio: 1; border: 2px solid var(--line); border-radius: 8px; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: clamp(22px, 6vw, 30px); text-transform: uppercase; }
+  .tile.filled { border-color: #6a6fae; }
+  .tile.hit { background: var(--hit); border-color: var(--hit); color: #0b0c18; }
+  .tile.near { background: var(--near); border-color: var(--near); color: #0b0c18; }
+  .tile.miss { background: var(--miss); border-color: var(--miss); color: #cfd2ee; }
+  .clue { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 52px; }
+  .clue p { margin: 0; flex: 1; color: var(--muted); font-size: 15px; }
+  .clue p b { color: var(--text); }
+  .small { min-height: 36px; border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 8px; padding: 0 12px; font-weight: 600; flex: none; }
+  .msg { text-align: center; font-weight: 700; min-height: 1.4em; margin: 0; }
+  .kb { display: flex; flex-direction: column; gap: 6px; }
+  .kb div { display: flex; gap: 5px; justify-content: center; }
+  .key { flex: 1 1 0; min-width: 0; max-width: 44px; height: 54px; border: none; border-radius: 6px; background: #4a4e78; color: var(--text); font-weight: 700; font-size: 16px; text-transform: uppercase; }
+  .key.wide { max-width: 70px; flex-grow: 1.6; font-size: 12px; }
+  .key.hit { background: var(--hit); color: #0b0c18; } .key.near { background: var(--near); color: #0b0c18; } .key.miss { background: #23253d; color: #6d7099; }
+  .result { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; text-align: center; }
+  .result h2 { margin: 0; font-family: var(--display); font-size: 22px; }
+  .result .word { font-family: var(--display); font-size: 30px; letter-spacing: .15em; color: var(--accent); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .stats div { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); }
+  .stats b { font-size: 22px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .dist { display: flex; flex-direction: column; gap: 4px; text-align: left; font-size: 13px; }
+  .dist div { display: flex; gap: 6px; align-items: center; }
+  .dist i { display: block; height: 18px; background: #4a4e78; border-radius: 3px; min-width: 18px; text-align: right; padding-right: 5px; font-style: normal; font-size: 12px; line-height: 18px; }
+  .dist i.now { background: var(--hit); color: #0b0c18; }
+  .btn { min-height: 48px; border: none; border-radius: 10px; background: var(--accent); color: #1a0c00; font-weight: 700; font-size: 16px; }
+  .toggle { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  @media (prefers-reduced-motion: reduce) { .row.shake { animation: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="icon" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>WORD FORGE</h1>
+  <button class="icon" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <div class="modes" role="group" aria-label="Mode">
+    <button class="mode" data-mode="daily">Daily word</button>
+    <button class="mode" data-mode="practice">Practice</button>
+  </div>
+  <div class="board" id="board" aria-label="Guesses"></div>
+  <div class="clue"><p id="clue">Guess the 5-letter word in 6 tries.</p><button class="small" id="hintBtn">Show clue</button></div>
+  <p class="msg" id="msg" aria-live="polite"></p>
+  <section class="result" id="result" hidden>
+    <h2 id="resTitle">Forged!</h2>
+    <div class="word" id="resWord"></div>
+    <p style="margin:0;color:var(--muted)" id="resClue"></p>
+    <div class="stats">
+      <div><b id="stPlayed">0</b>Played</div><div><b id="stWin">0%</b>Won</div><div><b id="stStreak">0</b>Streak</div><div><b id="stBest">0</b>Best streak</div>
+    </div>
+    <div class="dist" id="dist"></div>
+    <button class="btn" id="nextBtn">New practice word</button>
+  </section>
+  <div class="kb" id="kb"></div>
+  <label class="toggle"><input type="checkbox" id="contrast"> High-contrast colours</label>
+</main>
+
+<script>
+/* ---------- Word list: WORD|clue. Add your own 5-letter words here. ---------- */
+const WORDS_TEXT = `ACORN|the nut of an oak tree
+ALARM|a sound that warns you or wakes you up
+ANGLE|the space between two lines that meet
+APRON|worn to keep clothes clean while cooking
+ARROW|shot from a bow
+ATLAS|a book of maps
+BADGE|a pin or patch you earn or wear
+BEACH|a sandy shore by the sea
+BERRY|a small juicy fruit
+BLAZE|a big, bright fire
+BLEND|to mix together smoothly
+BOARD|a flat piece of wood
+BRAIN|the organ you think with
+BRAVE|not afraid
+BREAD|baked from flour and water
+BRICK|a block used to build walls
+BRUSH|used for painting or for hair
+CABIN|a small wooden house
+CAMEL|a desert animal with humps
+CANDY|a sweet treat
+CHALK|used to write on a blackboard
+CHART|a diagram that shows information
+CHESS|a board game with kings and queens
+CLIMB|to go up using hands and feet
+CLOCK|tells the time
+CLOUD|white and fluffy, floating in the sky
+COAST|where the land meets the sea
+CORAL|a reef built by tiny sea animals
+CRANE|a tall bird, or a machine that lifts
+CROWN|worn by a king or queen
+DAISY|a white flower with a yellow centre
+DANCE|to move to music
+DELTA|land where a river meets the sea
+DREAM|stories you see while asleep
+EAGLE|a large bird of prey
+EARTH|our planet
+EMPTY|with nothing inside
+FEAST|a very big meal
+FIELD|open land with grass or crops
+FLAME|the bright part of a fire
+FLOOD|water covering land that is usually dry
+FLUTE|a musical instrument you blow across
+FROST|thin ice on cold mornings
+FRUIT|apples and bananas are this
+GHOST|a spooky spirit in stories
+GIANT|a very large being
+GLOBE|a round model of the Earth
+GRAPE|a small fruit that grows in bunches
+GRASS|the green plant on a lawn
+HAPPY|feeling joy
+HEART|pumps blood around the body
+HONEY|sweet food made by bees
+HORSE|an animal you can ride
+HOUSE|a building people live in
+JUICE|a drink squeezed from fruit
+KOALA|an Australian animal that eats eucalyptus
+LASER|a narrow beam of strong light
+LEMON|a sour yellow fruit
+LEVEL|flat, or a stage in a game
+LIGHT|what lets us see
+LUNAR|to do with the Moon
+MAGIC|tricks that seem impossible
+MANGO|a sweet tropical fruit
+MAPLE|a tree whose sap makes syrup
+METAL|iron and copper are examples
+MONEY|used to buy things
+MUSIC|sounds arranged to be pleasing
+NIGHT|the time when it is dark
+NOVEL|a long story book
+OCEAN|a huge body of salt water
+OLIVE|a small fruit pressed for oil
+ORBIT|the path around a planet or star
+OTTER|a playful animal that swims
+PAINT|coloured liquid for making pictures
+PANDA|a black and white bear
+PEACH|a soft, fuzzy fruit
+PIANO|an instrument with black and white keys
+PILOT|flies a plane
+PIZZA|flat bread with toppings
+PLANE|flies in the sky
+PLANT|grows from a seed
+POLAR|near the North or South Pole
+PRISM|splits white light into colours
+QUEEN|a female ruler
+QUIET|making very little noise
+RADAR|uses radio waves to find objects
+RIVER|flowing water heading to the sea
+ROBOT|a machine that can do tasks
+SCALE|used to weigh things, or found on a fish
+SHARK|a big fish with sharp teeth
+SHELL|the hard cover of a snail or a nut
+SMILE|a happy face
+SNAKE|a reptile with no legs
+SOLAR|to do with the Sun
+SPACE|everything beyond Earth's sky
+SPOON|used to eat soup
+STORM|strong wind and heavy rain
+SUGAR|sweet white crystals
+TIGER|a striped big cat
+TOAST|bread browned by heat
+TORCH|a light you can carry
+TRAIN|runs on rails
+TULIP|a cup-shaped spring flower
+VIRUS|a tiny germ that can make you ill
+VOICE|the sound you make when you speak
+WATER|H₂O
+WHALE|the biggest animal in the ocean
+WORLD|the Earth and everyone on it
+YACHT|a sailing boat
+ZEBRA|a striped, horse-like animal`;
+const WORDS = WORDS_TEXT.split('\n').map(l => { const [w, c] = l.split('|'); return { w, c }; });
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.1, type = 'square', v = 0.05, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+/* ---------- Game ---------- */
+let mode = 'daily', answer = null, guesses = [], cur = '', over = false, hintUsed = false;
+const stats = () => store.get('wordForge.stats.' + mode, { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] });
+
+function score(guess, target) {
+  const res = Array(5).fill('miss'), left = {};
+  for (let i = 0; i < 5; i++) { if (guess[i] === target[i]) res[i] = 'hit'; else left[target[i]] = (left[target[i]] || 0) + 1; }
+  for (let i = 0; i < 5; i++) if (res[i] !== 'hit' && left[guess[i]]) { res[i] = 'near'; left[guess[i]]--; }
+  return res;
+}
+
+function newGame(m) {
+  mode = m;
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+  if (m === 'daily') {
+    answer = WORDS[hash(todayKey()) % WORDS.length];
+    const saved = store.get('wordForge.daily', null);
+    guesses = saved && saved.day === todayKey() ? saved.guesses : [];
+  } else {
+    let w; do { w = WORDS[Math.floor(Math.random() * WORDS.length)]; } while (answer && w.w === answer.w && WORDS.length > 1);
+    answer = w; guesses = [];
+  }
+  cur = ''; hintUsed = false; over = false;
+  $('clue').textContent = 'Guess the 5-letter word in 6 tries.';
+  $('hintBtn').hidden = false; $('result').hidden = true; $('msg').textContent = '';
+  render();
+  const last = guesses[guesses.length - 1];
+  if (last === answer.w || guesses.length === 6) finish(last === answer.w, true);
+}
+
+function render() {
+  const rows = [];
+  for (let r = 0; r < 6; r++) {
+    const g = guesses[r], text = g || (r === guesses.length ? cur : '');
+    const sc = g ? score(g, answer.w) : null;
+    rows.push(`<div class="row" ${r === guesses.length ? 'id="curRow"' : ''}>${[0, 1, 2, 3, 4].map(i => `<div class="tile ${sc ? sc[i] : text[i] ? 'filled' : ''}" aria-label="${text[i] || 'empty'}${sc ? ', ' + { hit: 'right spot', near: 'wrong spot', miss: 'not in word' }[sc[i]] : ''}">${text[i] || ''}</div>`).join('')}</div>`);
+  }
+  $('board').innerHTML = rows.join('');
+  const best = {};
+  const rank = { miss: 1, near: 2, hit: 3 };
+  guesses.forEach(g => score(g, answer.w).forEach((s, i) => { if (!best[g[i]] || rank[s] > rank[best[g[i]]]) best[g[i]] = s; }));
+  const KB = ['QWERTYUIOP', 'ASDFGHJKL', '+ZXCVBNM-'];
+  $('kb').innerHTML = KB.map(r => `<div>${[...r].map(k => k === '+' ? '<button class="key wide" data-k="ENTER">ENTER</button>' : k === '-' ? '<button class="key wide" data-k="BACK" aria-label="Delete">⌫</button>' : `<button class="key ${best[k] || ''}" data-k="${k}">${k}</button>`).join('')}</div>`).join('');
+}
+
+function type(k) {
+  if (over) return;
+  if (k === 'ENTER') return submit();
+  if (k === 'BACK') { cur = cur.slice(0, -1); render(); return; }
+  if (/^[A-Z]$/.test(k) && cur.length < 5) { cur += k; tone(600, 0.04); render(); }
+}
+
+function submit() {
+  if (cur.length < 5) { $('msg').textContent = 'Not enough letters'; const r = $('curRow'); r.classList.remove('shake'); void r.offsetWidth; r.classList.add('shake'); return; }
+  guesses.push(cur); cur = ''; $('msg').textContent = '';
+  if (mode === 'daily') store.set('wordForge.daily', { day: todayKey(), guesses });
+  const sc = score(guesses[guesses.length - 1], answer.w);
+  sc.forEach((s, i) => tone(s === 'hit' ? 880 : s === 'near' ? 660 : 330, 0.08, 'triangle', 0.08, i * 0.08));
+  render();
+  const won = guesses[guesses.length - 1] === answer.w;
+  if (won || guesses.length === 6) finish(won, false);
+}
+
+function finish(won, restoring) {
+  over = true;
+  if (!restoring) {
+    const s = stats();
+    s.played++; if (won) { s.won++; s.streak++; s.best = Math.max(s.best, s.streak); s.dist[guesses.length - 1]++; } else s.streak = 0;
+    store.set('wordForge.stats.' + mode, s);
+    if (won) [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'triangle', 0.1, 0.5 + i * 0.1));
+  }
+  const s = stats();
+  $('resTitle').textContent = won ? ['Genius!', 'Brilliant!', 'Great!', 'Nice!', 'Phew!', 'Just made it!'][guesses.length - 1] : 'Out of tries';
+  $('resWord').textContent = answer.w;
+  $('resClue').textContent = `Meaning: ${answer.c}.`;
+  $('stPlayed').textContent = s.played; $('stWin').textContent = s.played ? Math.round(s.won / s.played * 100) + '%' : '0%';
+  $('stStreak').textContent = s.streak; $('stBest').textContent = s.best;
+  const max = Math.max(1, ...s.dist);
+  $('dist').innerHTML = s.dist.map((n, i) => `<div>${i + 1}<i class="${won && i === guesses.length - 1 ? 'now' : ''}" style="width:${8 + n / max * 85}%">${n}</i></div>`).join('');
+  $('nextBtn').textContent = mode === 'daily' ? 'Play a practice word' : 'New practice word';
+  $('hintBtn').hidden = true; $('result').hidden = false;
+}
+
+$('kb').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) type(b.dataset.k); });
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.tagName === 'INPUT') return;
+  if (e.key === 'Enter') { e.preventDefault(); type('ENTER'); }
+  else if (e.key === 'Backspace') type('BACK');
+  else if (/^[a-z]$/i.test(e.key)) type(e.key.toUpperCase());
+});
+$('hintBtn').onclick = () => { hintUsed = true; $('clue').innerHTML = `<b>Clue:</b> ${answer.c}`; $('hintBtn').hidden = true; };
+$('nextBtn').onclick = () => newGame('practice');
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => newGame(b.dataset.mode));
+$('contrast').checked = store.get('wordForge.contrast', false);
+document.body.classList.toggle('contrast', $('contrast').checked);
+$('contrast').onchange = e => { document.body.classList.toggle('contrast', e.target.checked); store.set('wordForge.contrast', e.target.checked); };
+newGame('daily');
+</script>
+</body>
+</html>

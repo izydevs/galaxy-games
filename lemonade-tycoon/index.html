@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lemonade Tycoon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header, cash/day strip, then a two-column board: plan the day (left) and the ledger (right); stacks on phones */
+  :root {
+    --bg: #fffbe6; --panel: #ffffff; --line: #eadfae; --text: #2b2410; --muted: #7a6b3c;
+    --lemon: #ffd21f; --leaf: #2f9e44; --red: #d6455a; --accent: #f2b705; --ink-on-lemon: #2b2410;
+    --display: "Bricolage Grotesque", "Trebuchet MS", sans-serif; --body: "Inter", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--body); -webkit-tap-highlight-color: transparent; }
+  button, input { font-family: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--leaf); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--lemon); }
+  .top h1 { flex: 1; margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(24px, 5vw, 34px); text-align: center; }
+  .icon { width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,.7); color: var(--text); display: grid; place-items: center; flex: none; }
+  .icon svg { width: 20px; height: 20px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 16px; }
+  .strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 600px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .kpi span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .kpi b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
+  .rep { height: 8px; border-radius: 4px; background: #f1ead0; overflow: hidden; margin-top: 4px; }
+  .rep i { display: block; height: 100%; background: var(--leaf); }
+  .board { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 760px) { .board { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  h2 { margin: 0; font-family: var(--display); font-size: 22px; }
+  .weather { display: flex; align-items: center; gap: 14px; background: #fff7d1; border-radius: 14px; padding: 12px; }
+  .weather .w-ico { font-size: 44px; line-height: 1; }
+  .weather b { font-size: 18px; }
+  .weather p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { display: flex; justify-content: space-between; font-weight: 600; }
+  .field label output { font-family: var(--display); font-size: 20px; font-variant-numeric: tabular-nums; }
+  .field small { color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--leaf); height: 32px; }
+  .check { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .check input { width: 22px; height: 22px; accent-color: var(--leaf); }
+  .summary { display: flex; justify-content: space-between; gap: 10px; border-top: 1px dashed var(--line); padding-top: 12px; font-variant-numeric: tabular-nums; }
+  .summary span { color: var(--muted); }
+  .btn { min-height: 54px; border: none; border-radius: 14px; background: var(--leaf); color: #fff; font-family: var(--display); font-size: 20px; font-weight: 800; }
+  .btn.alt { background: var(--lemon); color: var(--ink-on-lemon); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+  th, td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .pos { color: var(--leaf); font-weight: 700; } .neg { color: var(--red); font-weight: 700; }
+  .table-wrap { overflow-x: auto; }
+  .chart { display: flex; align-items: center; gap: 4px; height: 120px; padding: 0 2px; border-left: 1px solid var(--line); position: relative; }
+  .chart .bar { flex: 1; display: flex; flex-direction: column; justify-content: center; height: 100%; position: relative; }
+  .chart .bar i { position: absolute; left: 10%; right: 10%; border-radius: 3px; }
+  .chart .zero { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid #cbbf8c; }
+  .result { background: #f0fbe9; border: 1px solid #bfe3ad; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .result.loss { background: #fdeef0; border-color: #f2c2ca; }
+  .result h3 { margin: 0; font-family: var(--display); font-size: 20px; }
+  .result ul { margin: 0; padding-left: 18px; line-height: 1.6; }
+  .lesson { background: #fff7d1; border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+  .lesson b { color: var(--leaf); }
+  .end { text-align: center; align-items: center; }
+  .end .big { font-family: var(--display); font-size: 44px; font-weight: 800; }
+  .muted { color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="icon" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>Lemonade Tycoon</h1>
+  <button class="icon" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <div class="strip">
+    <div class="kpi"><span>Day</span><b id="kDay">1 / 10</b></div>
+    <div class="kpi"><span>Cash</span><b id="kCash">50</b></div>
+    <div class="kpi"><span>Total profit</span><b id="kProfit">0</b></div>
+    <div class="kpi"><span>Reputation</span><b id="kRep">50</b><div class="rep"><i id="repBar" style="width:50%"></i></div></div>
+  </div>
+
+  <div class="board">
+    <section class="card" id="plan">
+      <h2>Plan today</h2>
+      <div class="weather"><span class="w-ico" id="wIcon">☀️</span><div><b id="wName">Sunny</b><p id="wText">Forecast</p></div></div>
+      <div class="field">
+        <label for="price">Price per cup <output id="priceOut">3 coins</output></label>
+        <input type="range" id="price" min="1" max="10" value="3">
+        <small>Higher prices earn more per cup, but fewer people buy.</small>
+      </div>
+      <div class="field">
+        <label for="cups">Cups to make <output id="cupsOut">20</output></label>
+        <input type="range" id="cups" min="0" max="100" value="20">
+        <small id="costNote">Each cup costs 1 coin in lemons, sugar and a cup. Unsold cups are thrown away.</small>
+      </div>
+      <label class="check"><input type="checkbox" id="ad"> Put up a poster (costs <span id="adCost">8</span> coins, brings more visitors)</label>
+      <div class="summary"><span>Today's spending</span><b id="spend">20 coins</b></div>
+      <button class="btn" id="open">Open the stand</button>
+    </section>
+
+    <section class="card">
+      <div id="resultBox"></div>
+      <h2>Ledger</h2>
+      <div class="chart" id="chart" aria-label="Profit each day"><span class="zero"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Day</th><th>Weather</th><th>Sold</th><th>Revenue</th><th>Costs</th><th>Profit</th></tr></thead>
+          <tbody id="ledger"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Your days will appear here.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="card end" id="endCard" hidden>
+    <h2 id="endTitle">Season over!</h2>
+    <div class="big" id="endProfit">+0 coins</div>
+    <p class="muted" id="endText"></p>
+    <button class="btn" id="restart">Play another season</button>
+  </section>
+</main>
+
+<script>
+/* ---------- Settings you can change ---------- */
+const DAYS = 10, START_CASH = 50, AD_COST = 8;
+const WEATHER = {
+  hot:    { name: 'Hot',    icon: '🔥', visitors: 90, maxPrice: 10, text: 'Scorching! Everyone is thirsty.' },
+  sunny:  { name: 'Sunny',  icon: '☀️', visitors: 65, maxPrice: 8,  text: 'Warm and bright. Good lemonade weather.' },
+  cloudy: { name: 'Cloudy', icon: '☁️', visitors: 40, maxPrice: 6,  text: 'Grey skies. Fewer people out.' },
+  rainy:  { name: 'Rainy',  icon: '🌧️', visitors: 18, maxPrice: 5,  text: 'Wet day. Hardly anyone wants a cold drink.' },
+};
+const ORDER = ['rainy', 'cloudy', 'sunny', 'hot'];
+const LESSONS = [
+  '<b>Profit = Revenue − Costs.</b> Revenue is the money customers pay you. Costs are what you spend.',
+  '<b>Supply and demand:</b> on hot days people will pay more, so you can raise your price.',
+  '<b>Waste is a cost.</b> Every cup you make but do not sell is money thrown away.',
+  '<b>Advertising</b> costs money up front. It is only worth it if it brings in more profit than it costs.',
+  '<b>Reputation</b> builds over time. Fair prices and enough cups keep customers coming back.',
+  '<b>Forecasts can be wrong.</b> Smart businesses plan for a little risk.',
+  '<b>Price too high?</b> You sell fewer cups. Too low? You sell lots but earn little on each one.',
+];
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.15, type = 'triangle', v = 0.1, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+const rnd = (a, b) => a + Math.random() * (b - a);
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n);
+
+/* ---------- Game ---------- */
+let S;
+function newSeason() {
+  S = { day: 1, cash: START_CASH, rep: 50, history: [], forecast: null, actual: null, cupCost: 1 };
+  $('endCard').hidden = true; $('plan').hidden = false; $('resultBox').innerHTML = '';
+  newDay(); renderLedger();
+}
+
+function newDay() {
+  const weights = { hot: 0.2, sunny: 0.4, cloudy: 0.25, rainy: 0.15 };
+  let r = Math.random(), w = 'sunny';
+  for (const k in weights) { if ((r -= weights[k]) <= 0) { w = k; break; } }
+  S.forecast = w;
+  // forecasts are right 75% of the time; otherwise one step off
+  if (Math.random() < 0.25) { const i = ORDER.indexOf(w) + (Math.random() < 0.5 ? -1 : 1); S.actual = ORDER[Math.max(0, Math.min(3, i))]; } else S.actual = w;
+  S.cupCost = Math.random() < 0.3 ? 2 : 1; // lemon prices change
+  const W = WEATHER[S.forecast];
+  $('wIcon').textContent = W.icon; $('wName').textContent = `Forecast: ${W.name}`; $('wText').textContent = W.text;
+  $('costNote').textContent = `Each cup costs ${S.cupCost} coin${S.cupCost > 1 ? 's' : ''} today${S.cupCost > 1 ? ' (lemons are expensive!)' : ''}. Unsold cups are thrown away.`;
+  $('adCost').textContent = AD_COST;
+  $('cups').max = Math.max(0, Math.min(100, Math.floor(S.cash / S.cupCost)));
+  if (+$('cups').value > +$('cups').max) $('cups').value = $('cups').max;
+  updatePlan(); renderKpis();
+}
+
+function updatePlan() {
+  const price = +$('price').value, cups = +$('cups').value, ad = $('ad').checked;
+  $('priceOut').textContent = `${price} coin${price > 1 ? 's' : ''}`;
+  $('cupsOut').textContent = cups;
+  const spend = cups * S.cupCost + (ad ? AD_COST : 0);
+  $('spend').textContent = `${spend} coins`;
+  const ok = spend <= S.cash;
+  $('spend').style.color = ok ? '' : 'var(--red)';
+  $('open').disabled = !ok;
+  $('open').textContent = ok ? 'Open the stand' : 'Not enough cash';
+}
+['price', 'cups', 'ad'].forEach(id => $(id).addEventListener('input', updatePlan));
+
+function renderKpis() {
+  $('kDay').textContent = `${Math.min(S.day, DAYS)} / ${DAYS}`;
+  $('kCash').textContent = S.cash;
+  const p = S.cash - START_CASH;
+  $('kProfit').textContent = signed(p); $('kProfit').className = p >= 0 ? 'pos' : 'neg';
+  $('kRep').textContent = Math.round(S.rep); $('repBar').style.width = S.rep + '%';
+}
+
+function openStand() {
+  const price = +$('price').value, cups = +$('cups').value, ad = $('ad').checked;
+  const W = WEATHER[S.actual];
+  const visitors = Math.round(W.visitors * (0.75 + S.rep / 200) * (ad ? 1.3 : 1) * rnd(0.85, 1.15));
+  const willing = Math.max(0, Math.min(1, (W.maxPrice + 1 - price) / W.maxPrice));
+  const wanted = Math.round(visitors * willing);
+  const sold = Math.min(cups, wanted);
+  const revenue = sold * price, costs = cups * S.cupCost + (ad ? AD_COST : 0), profit = revenue - costs;
+  const notes = [];
+  if (S.actual !== S.forecast) notes.push(`The forecast was wrong: it turned out ${W.name.toLowerCase()}.`);
+  if (wanted > cups) { S.rep -= 3; notes.push(`You ran out! ${wanted - cups} thirsty customers went home without lemonade.`); }
+  if (cups - sold > 0) notes.push(`${cups - sold} unsold cups were thrown away (${(cups - sold) * S.cupCost} coins wasted).`);
+  if (price > W.maxPrice * 0.8) { S.rep -= 4; notes.push('Customers grumbled that your price was too high.'); }
+  else if (price <= Math.ceil(W.maxPrice / 2) && sold > 0) { S.rep += 3; notes.push('Customers loved your fair price.'); }
+  if (ad) notes.push('Your poster brought extra visitors.');
+  S.rep = Math.max(0, Math.min(100, S.rep));
+  S.cash += profit;
+  S.history.push({ day: S.day, w: S.actual, sold, cups, revenue, costs, profit });
+
+  tone(profit >= 0 ? 784 : 220, 0.2); if (profit > 0) tone(1046, 0.2, 'triangle', 0.08, 0.1);
+  $('resultBox').innerHTML = `<div class="result ${profit < 0 ? 'loss' : ''}">
+    <h3>Day ${S.day}: ${W.icon} ${W.name} · ${profit >= 0 ? 'Profit' : 'Loss'} ${signed(profit)} coins</h3>
+    <ul><li>${visitors} people walked by and ${wanted} wanted lemonade at ${price} coin${price > 1 ? 's' : ''}.</li>
+    <li>You sold ${sold} of ${cups} cups: revenue ${revenue}, costs ${costs}.</li>${notes.map(n => `<li>${n}</li>`).join('')}</ul>
+    <div class="lesson">${LESSONS[(S.day - 1) % LESSONS.length]}</div></div>`;
+  S.day++;
+  renderLedger();
+  if (S.day > DAYS || (S.cash < 1 && S.cash < S.cupCost)) return endSeason();
+  newDay();
+}
+$('open').onclick = openStand;
+
+function renderLedger() {
+  if (!S.history.length) return;
+  $('ledger').innerHTML = S.history.map(h => `<tr><td>${h.day}</td><td>${WEATHER[h.w].icon}</td><td>${h.sold}/${h.cups}</td><td>${h.revenue}</td><td>${h.costs}</td><td class="${h.profit >= 0 ? 'pos' : 'neg'}">${signed(h.profit)}</td></tr>`).join('');
+  const max = Math.max(10, ...S.history.map(h => Math.abs(h.profit)));
+  $('chart').innerHTML = '<span class="zero"></span>' + Array.from({ length: DAYS }, (_, i) => {
+    const h = S.history[i]; if (!h) return '<div class="bar"></div>';
+    const pct = Math.abs(h.profit) / max * 50;
+    return `<div class="bar" title="Day ${h.day}: ${signed(h.profit)}"><i style="${h.profit >= 0 ? `bottom:50%;height:${pct}%;background:var(--leaf)` : `top:50%;height:${pct}%;background:var(--red)`}"></i></div>`;
+  }).join('');
+  renderKpis();
+}
+
+function endSeason() {
+  const profit = S.cash - START_CASH, best = store.get('lemonadeTycoon.best', null);
+  if (best == null || profit > best) store.set('lemonadeTycoon.best', profit);
+  const title = profit >= 150 ? 'Lemonade Legend!' : profit >= 80 ? 'Top Tycoon!' : profit >= 30 ? 'Smart Seller' : profit >= 0 ? 'Small Business Owner' : 'Lesson learned';
+  $('endTitle').textContent = title;
+  $('endProfit').textContent = `${signed(profit)} coins`; $('endProfit').className = 'big ' + (profit >= 0 ? 'pos' : 'neg');
+  const goodDays = S.history.filter(h => h.profit > 0).length;
+  $('endText').textContent = `You finished with ${S.cash} coins after ${S.history.length} days. ${goodDays} days made a profit. Best season: ${signed(Math.max(profit, best ?? profit))} coins.`;
+  $('plan').hidden = true; $('endCard').hidden = false;
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.1, i * 0.12));
+  renderKpis();
+}
+$('restart').onclick = newSeason;
+newSeason();
+</script>
+</body>
+</html>

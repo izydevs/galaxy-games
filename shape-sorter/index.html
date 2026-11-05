@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shape Sorter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header, a tray in the middle holding one shape, four baskets in a row below */
+  :root {
+    --bg: #fff3dc; --ink: #3a2a1a; --card: #ffffff; --muted: #7a6650;
+    --accent: #f08a24; --basket: #c98a4b; --basket-2: #a96d33;
+    --font: "Fredoka", "Comic Sans MS", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 4px solid var(--accent); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .top h1 { flex: 1; margin: 0; font-size: clamp(24px, 5vw, 36px); text-align: center; }
+  .round { width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--card); color: var(--ink); display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0,0,0,.12); flex: none; }
+  .round svg { width: 26px; height: 26px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); }
+  .panel { background: var(--card); border-radius: 28px; padding: 24px 20px; box-shadow: 0 6px 0 rgba(0,0,0,.08); text-align: center; display: flex; flex-direction: column; gap: 14px; }
+  .panel p { margin: 0; font-size: 20px; color: var(--muted); }
+  .big { min-height: 66px; border: none; border-radius: 999px; padding: 10px 24px; font-size: 24px; font-weight: 700; color: #fff; background: var(--accent); box-shadow: 0 5px 0 rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .big small { font-size: 16px; font-weight: 600; }
+  .stars { display: flex; justify-content: center; gap: 8px; }
+  .stars svg { width: 64px; height: 64px; }
+
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
+  .prompt { text-align: center; font-size: clamp(22px, 4.6vw, 30px); font-weight: 700; margin: 10px 0 0; min-height: 1.3em; }
+  .tray { height: clamp(150px, 30vh, 220px); display: grid; place-items: center; }
+  .item { width: clamp(110px, 26vw, 150px); aspect-ratio: 1; touch-action: none; cursor: grab; border: none; background: none; padding: 0; max-width: 100%; }
+  .item svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 0 rgba(0,0,0,.15)); pointer-events: none; }
+  .item.dragging { cursor: grabbing; position: relative; z-index: 5; }
+  .item.picked svg { filter: drop-shadow(0 0 0 #000) drop-shadow(0 0 14px #f08a24); }
+  .item.pop { animation: pop .3s ease-out; }
+  @keyframes pop { from { transform: scale(.4); } to { transform: scale(1); } }
+  .baskets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 2vw, 16px); margin-top: 8px; }
+  .basket { border: none; border-radius: 18px 18px 30px 30px; padding: 14px 6px 12px; min-height: 130px; background: repeating-linear-gradient(90deg, var(--basket), var(--basket) 12px, var(--basket-2) 12px, var(--basket-2) 14px); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; box-shadow: 0 6px 0 rgba(0,0,0,.18); font-size: clamp(15px, 3.4vw, 20px); font-weight: 700; min-width: 0; }
+  .basket .label { background: rgba(255,255,255,.95); color: var(--ink); border-radius: 12px; padding: 6px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .basket .label svg { width: 44px; height: 44px; }
+  .basket .count { font-size: 14px; color: #fff; }
+  .basket.over { outline: 5px solid #fff; transform: translateY(-4px); }
+  .basket.yes { animation: bounce .4s; }
+  .basket.no { animation: shake .4s; }
+  @keyframes bounce { 50% { transform: translateY(-10px); } }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  .help { text-align: center; color: var(--muted); font-size: 16px; margin-top: 14px; }
+  .confetti { position: fixed; top: -12px; width: 10px; height: 14px; pointer-events: none; animation: fall 2.4s linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) { .basket.yes, .basket.no, .item.pop { animation: none; } .confetti { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="round" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>Shape Sorter</h1>
+  <button class="round" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <section class="panel" id="menu">
+    <p>Drag each shape into the right basket, or tap the shape and then tap a basket.</p>
+    <button class="big" style="background:#20a866" data-mode="shape">Sort by shape <small><span data-best="shape"></span></small></button>
+    <button class="big" style="background:#4b6cf0" data-mode="color">Sort by colour <small><span data-best="color"></span></small></button>
+  </section>
+
+  <section id="game" hidden>
+    <div class="hud"><span id="progress">Shape 1 of 12</span><span>⭐ <b id="score">0</b></span></div>
+    <p class="prompt" id="prompt" aria-live="polite"></p>
+    <div class="tray" id="tray"></div>
+    <div class="baskets" id="baskets"></div>
+    <p class="help">Keyboard: press 1, 2, 3 or 4 to drop into a basket.</p>
+  </section>
+
+  <section class="panel" id="win" hidden>
+    <h2 style="margin:0;font-size:36px" id="winTitle">All sorted!</h2>
+    <div class="stars" id="winStars"></div>
+    <p id="winText"></p>
+    <button class="big" style="background:#20a866" id="again">Play again</button>
+    <button class="big" style="background:#4b6cf0" id="back">Change game</button>
+  </section>
+</main>
+
+<script>
+/* ---------- Settings you can change ---------- */
+const ITEMS_PER_ROUND = 12;
+const SHAPES = ['circle', 'square', 'triangle', 'star'];
+const COLORS = { red: '#ef4444', blue: '#3b82f6', yellow: '#facc15', green: '#22c55e' };
+const SHAPE_NAMES = { circle: 'Circle', square: 'Square', triangle: 'Triangle', star: 'Star' };
+const COLOR_NAMES = { red: 'Red', blue: 'Blue', yellow: 'Yellow', green: 'Green' };
+
+/* ---------- Shared helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.2, type = 'triangle', v = 0.15, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const sfx = { tap: () => tone(520, 0.08, 'sine', 0.08), good: () => { tone(784, 0.18); tone(1175, 0.25, 'triangle', 0.12, 0.08); }, bad: () => tone(260, 0.25, 'sine', 0.12), win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.14, i * 0.13)) };
+function say(t) { try { if (muted || !('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(t); u.rate = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+function confetti() { for (let i = 0; i < 70; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.background = ['#ef4444', '#facc15', '#22c55e', '#3b82f6', '#f08a24'][i % 5]; c.style.animationDelay = Math.random() * 0.8 + 's'; document.body.appendChild(c); setTimeout(() => c.remove(), 3400); } }
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const STAR = on => `<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6z" fill="${on ? '#ffc21a' : '#ece4d6'}" stroke="${on ? '#e09a00' : '#d8ccb6'}" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+function shapeSVG(shape, fill, stroke = '#3a2a1a') {
+  const s = `fill="${fill}" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"`;
+  const body = {
+    circle: `<circle cx="50" cy="50" r="40" ${s}/>`,
+    square: `<rect x="12" y="12" width="76" height="76" rx="8" ${s}/>`,
+    triangle: `<path d="M50 8 L92 88 H8 Z" ${s}/>`,
+    star: `<path d="M50 6l12.6 27.4 29.9 3.3-22.3 20.2 6.2 29.4L50 71.3 23.6 86.3l6.2-29.4L7.5 36.7l29.9-3.3z" ${s}/>`,
+  }[shape];
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">${body}</svg>`;
+}
+
+/* ---------- Game ---------- */
+let mode = 'shape', n = 0, score = 0, firstTry = true, current = null, picked = false;
+const keys = () => mode === 'shape' ? SHAPES : Object.keys(COLORS);
+
+function show(id) { ['menu', 'game', 'win'].forEach(s => $(s).hidden = s !== id); if (id === 'menu') document.querySelectorAll('[data-best]').forEach(el => { const b = store.get('shapeSorter.best.' + el.dataset.best, null); el.textContent = b == null ? '' : `Best: ${b}/${ITEMS_PER_ROUND}`; }); }
+
+function start(m) {
+  mode = m; n = 0; score = 0;
+  $('baskets').innerHTML = keys().map((k, i) => `<button class="basket" data-key="${k}" aria-label="Basket ${i + 1}: ${mode === 'shape' ? SHAPE_NAMES[k] : COLOR_NAMES[k]}">
+    <span class="label">${mode === 'shape' ? shapeSVG(k, '#ffffff') : shapeSVG('circle', COLORS[k])}<span>${mode === 'shape' ? SHAPE_NAMES[k] : COLOR_NAMES[k]}</span></span>
+    <span class="count">${i + 1}</span></button>`).join('');
+  show('game'); next();
+}
+
+function next() {
+  if (n >= ITEMS_PER_ROUND) return finish();
+  current = { shape: pick(SHAPES), color: pick(Object.keys(COLORS)) };
+  firstTry = true; picked = false;
+  $('progress').textContent = `Shape ${n + 1} of ${ITEMS_PER_ROUND}`;
+  $('score').textContent = score;
+  const word = mode === 'shape' ? SHAPE_NAMES[current.shape].toLowerCase() : COLOR_NAMES[current.color].toLowerCase();
+  $('prompt').textContent = `Where does the ${COLOR_NAMES[current.color].toLowerCase()} ${SHAPE_NAMES[current.shape].toLowerCase()} go?`;
+  $('tray').innerHTML = `<button class="item pop" id="item" aria-label="${COLOR_NAMES[current.color]} ${SHAPE_NAMES[current.shape]}. Tap to pick it up.">${shapeSVG(current.shape, COLORS[current.color])}</button>`;
+  bindDrag($('item'));
+}
+
+function drop(key, basketEl) {
+  const answer = mode === 'shape' ? current.shape : current.color;
+  if (key === answer) {
+    sfx.good(); basketEl.classList.remove('yes'); void basketEl.offsetWidth; basketEl.classList.add('yes');
+    if (firstTry) score++;
+    say(mode === 'shape' ? SHAPE_NAMES[key] : COLOR_NAMES[key]);
+    $('prompt').textContent = pick(['Yes!', 'Great sorting!', 'Well done!', 'Super!']);
+    $('tray').innerHTML = ''; n++;
+    setTimeout(next, 700);
+  } else {
+    sfx.bad(); firstTry = false; basketEl.classList.remove('no'); void basketEl.offsetWidth; basketEl.classList.add('no');
+    $('prompt').textContent = 'Oops! Try another basket.';
+    resetItem();
+  }
+}
+
+function resetItem() { const it = $('item'); if (it) { it.style.transform = ''; it.classList.remove('dragging', 'picked'); } picked = false; }
+
+function bindDrag(el) {
+  let sx = 0, sy = 0, moved = false, active = false;
+  el.addEventListener('pointerdown', e => { active = true; moved = false; sx = e.clientX; sy = e.clientY; el.setPointerCapture(e.pointerId); el.classList.add('dragging'); });
+  el.addEventListener('pointermove', e => {
+    if (!active) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.hypot(dx, dy) > 8) moved = true;
+    if (moved) {
+      el.style.transform = `translate(${dx}px, ${dy}px) scale(.8)`;
+      document.querySelectorAll('.basket').forEach(b => b.classList.remove('over'));
+      basketAt(e.clientX, e.clientY)?.classList.add('over');
+    }
+  });
+  const end = e => {
+    if (!active) return; active = false; el.classList.remove('dragging');
+    document.querySelectorAll('.basket').forEach(b => b.classList.remove('over'));
+    if (!moved) { picked = !picked; el.classList.toggle('picked', picked); sfx.tap(); if (picked) $('prompt').textContent = 'Now tap a basket!'; return; }
+    const b = basketAt(e.clientX, e.clientY);
+    if (b) drop(b.dataset.key, b); else resetItem();
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', () => { active = false; resetItem(); });
+}
+function basketAt(x, y) {
+  return [...document.querySelectorAll('.basket')].find(b => { const r = b.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
+}
+
+$('baskets').addEventListener('click', e => { const b = e.target.closest('.basket'); if (b && $('item')) drop(b.dataset.key, b); });
+addEventListener('keydown', e => {
+  if ($('game').hidden || !$('item')) return;
+  const i = ['1', '2', '3', '4'].indexOf(e.key);
+  if (i >= 0) { const b = $('baskets').children[i]; drop(b.dataset.key, b); }
+});
+
+function finish() {
+  const stars = score >= 11 ? 3 : score >= 8 ? 2 : 1;
+  const best = store.get('shapeSorter.best.' + mode, null);
+  if (best == null || score > best) store.set('shapeSorter.best.' + mode, score);
+  $('winTitle').textContent = stars === 3 ? 'Super sorter!' : 'All sorted!';
+  $('winStars').innerHTML = [0, 1, 2].map(i => STAR(i < stars)).join('');
+  $('winText').textContent = `${score} of ${ITEMS_PER_ROUND} right on the first try.`;
+  sfx.win(); confetti(); show('win'); $('again').focus();
+}
+
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => start(b.dataset.mode));
+$('again').onclick = () => start(mode);
+$('back').onclick = () => show('menu');
+show('menu');
+</script>
+</body>
+</html>

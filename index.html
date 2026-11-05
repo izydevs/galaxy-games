@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galaxy Games</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@400;600;700&display=swap">
+<style>
+  /* Layout: night-sky page; title; age filter; two shelves of game cards (auto-fill grid); parents' note */
+  :root {
+    --sky: #0b1033;
+    --sky-2: #151c52;
+    --sky-3: #1d2563;
+    --text: #eef0ff;
+    --muted: #a9b0e0;
+    --sun: #ffd23f;
+    --cyan: #39f3ff;
+    --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { min-height: 100%; }
+  body {
+    margin: 0; min-height: 100%;
+    background: radial-gradient(ellipse at 50% -10%, #2a2f86 0%, var(--sky) 55%) fixed, var(--sky);
+    color: var(--text); font-family: var(--body); font-size: 17px; line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 40px 32px;
+  }
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+  header { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(44px, 9vw, 84px); line-height: 1; margin: 0; text-wrap: balance; }
+  h1 span { color: var(--sun); }
+  header p { margin: 0; color: var(--muted); font-size: clamp(17px, 2.4vw, 20px); max-width: 40ch; }
+  .filter { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .filter button { min-height: 46px; padding: 6px 20px; border-radius: 99px; border: 2px solid rgba(255,255,255,.15); background: transparent; color: var(--text); font-family: var(--display); font-size: 17px; font-weight: 500; cursor: pointer; }
+  .filter button[aria-pressed="true"] { background: var(--text); color: var(--sky); border-color: var(--text); }
+  .filter button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+  .shelf { display: flex; flex-direction: column; gap: 14px; }
+  .shelf-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--display); font-size: clamp(26px, 4vw, 34px); margin: 0; }
+  .shelf-head span { color: var(--muted); }
+  .young h2 { color: var(--sun); }
+  .older h2 { color: var(--cyan); }
+  .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+  .game {
+    display: flex; flex-direction: column; text-decoration: none; color: inherit; min-width: 0;
+    border-radius: 22px; overflow: hidden; background: var(--sky-2); border: 2px solid rgba(255,255,255,.07);
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .game:hover, .game:focus-visible { transform: translateY(-4px); outline: none; }
+  .young .game:hover, .young .game:focus-visible { border-color: var(--sun); box-shadow: 0 12px 34px rgba(255,210,63,.16); }
+  .older .game:hover, .older .game:focus-visible { border-color: var(--cyan); box-shadow: 0 12px 34px rgba(57,243,255,.16); }
+  .art { height: 110px; display: grid; place-items: center; font-size: 56px; line-height: 1; position: relative; overflow: hidden; }
+  .art::after { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 90%; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .body h3 { font-family: var(--display); font-size: 22px; line-height: 1.15; margin: 0; }
+  .body p { margin: 0; color: var(--muted); font-size: 15px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; padding-top: 6px; }
+  .tags span { font-size: 12px; padding: 2px 9px; border-radius: 99px; background: rgba(255,255,255,.08); }
+  .age { font-family: var(--display); font-weight: 700; font-size: 13px; }
+  .young .age { color: var(--sun); }
+  .older .age { color: var(--cyan); }
+  .parents { border-top: 1px solid rgba(255,255,255,.1); padding-top: 20px; display: flex; flex-wrap: wrap; gap: 10px 28px; justify-content: center; color: var(--muted); font-size: 15px; }
+  .parents b { color: var(--text); }
+  .parents span { display: inline-flex; align-items: center; gap: 8px; }
+  .parents svg { width: 18px; height: 18px; color: #7be0a8; flex: none; }
+  @media (prefers-reduced-motion: reduce) { .game { transition: none; } .game:hover { transform: none; } }
+</style>
+</head>
+<body>
+<canvas class="stars" id="stars" aria-hidden="true"></canvas>
+<main>
+  <header>
+    <h1>Galaxy <span>Games</span></h1>
+    <p>Twelve free learning games for math, reading, science, coding, money and logic.</p>
+  </header>
+
+  <div class="filter" role="group" aria-label="Show games for">
+    <button data-show="all" aria-pressed="true">All games</button>
+    <button data-show="young" aria-pressed="false">Ages 5–8</button>
+    <button data-show="older" aria-pressed="false">Ages 9–15</button>
+  </div>
+
+  <section class="shelf young" id="young">
+    <div class="shelf-head"><h2>Little explorers</h2><span>Ages 5–8 · big buttons, sounds, no reading needed to start</span></div>
+    <div class="games">
+      <a class="game" href="star-catcher/index.html"><div class="art" style="background:linear-gradient(135deg,#1b2a6b,#6a3fb8)">🚀</div><div class="body"><span class="age">Ages 5–8</span><h3>Star Catcher</h3><p>Fly a rocket and catch the star with the right answer.</p><div class="tags"><span>Adding</span><span>Taking away</span><span>Times</span></div></div></a>
+      <a class="game" href="memory-match/index.html"><div class="art" style="background:linear-gradient(135deg,#4b6cf0,#7b93ff)">🐼</div><div class="body"><span class="age">Ages 5–8</span><h3>Memory Match</h3><p>Flip the cards and find all the animal pairs.</p><div class="tags"><span>Memory</span><span>Animals</span></div></div></a>
+      <a class="game" href="spelling-bubbles/index.html"><div class="art" style="background:linear-gradient(135deg,#13a3b5,#5fc3e4)">🫧</div><div class="body"><span class="age">Ages 5–8</span><h3>Spelling Bubbles</h3><p>Pop the letter bubbles in order to spell the word.</p><div class="tags"><span>Spelling</span><span>Phonics</span></div></div></a>
+      <a class="game" href="counting-garden/index.html"><div class="art" style="background:linear-gradient(135deg,#45a832,#8fd16e)">🐞</div><div class="body"><span class="age">Ages 5–8</span><h3>Counting Garden</h3><p>Count the bugs, flowers and fruit in the garden.</p><div class="tags"><span>Counting</span><span>Numbers to 20</span></div></div></a>
+      <a class="game" href="shape-sorter/index.html"><div class="art" style="background:linear-gradient(135deg,#f08a24,#ffc65c)">🔺</div><div class="body"><span class="age">Ages 5–8</span><h3>Shape Sorter</h3><p>Drag shapes into the right basket by shape or colour.</p><div class="tags"><span>Shapes</span><span>Colours</span></div></div></a>
+      <a class="game" href="color-echo/index.html"><div class="art" style="background:linear-gradient(135deg,#2b1d52,#6b3fb8)">🎵</div><div class="body"><span class="age">Ages 5+</span><h3>Color Echo</h3><p>Watch the lights and sounds, then repeat the pattern.</p><div class="tags"><span>Memory</span><span>Focus</span></div></div></a>
+    </div>
+  </section>
+
+  <section class="shelf older" id="older">
+    <div class="shelf-head"><h2>Cadets and commanders</h2><span>Ages 9–15 · levels, scores and real challenge</span></div>
+    <div class="games">
+      <a class="game" href="galaxy-defenders/index.html"><div class="art" style="background:linear-gradient(135deg,#060918,#0b3d74)">🛸</div><div class="body"><span class="age">Ages 9–15</span><h3>Galaxy Defenders</h3><p>Answer questions to blast asteroids and save five planets.</p><div class="tags"><span>Math</span><span>Science</span><span>Geography</span><span>English</span></div></div></a>
+      <a class="game" href="word-forge/index.html"><div class="art" style="background:linear-gradient(135deg,#1b1d36,#ff8a3d)">🔤</div><div class="body"><span class="age">Ages 9–15</span><h3>Word Forge</h3><p>Guess the five-letter word in six tries. New word daily.</p><div class="tags"><span>Vocabulary</span><span>Spelling</span></div></div></a>
+      <a class="game" href="code-quest/index.html"><div class="art" style="background:linear-gradient(135deg,#0c1a1f,#3ee0c4)">🤖</div><div class="body"><span class="age">Ages 9–13</span><h3>Code Quest</h3><p>Program a robot with command blocks to solve 10 mazes.</p><div class="tags"><span>Coding</span><span>Sequencing</span></div></div></a>
+      <a class="game" href="typing-rocket/index.html"><div class="art" style="background:linear-gradient(135deg,#120a24,#4a1d4f)">⌨️</div><div class="body"><span class="age">Ages 9–15</span><h3>Typing Rocket</h3><p>Type the falling words before they hit the ground.</p><div class="tags"><span>Typing</span><span>Speed</span></div></div></a>
+      <a class="game" href="lemonade-tycoon/index.html"><div class="art" style="background:linear-gradient(135deg,#f2b705,#ffe066)">🍋</div><div class="body"><span class="age">Ages 10–15</span><h3>Lemonade Tycoon</h3><p>Run a lemonade stand for 10 days and make a profit.</p><div class="tags"><span>Money</span><span>Business</span></div></div></a>
+      <a class="game" href="logic-lights/index.html"><div class="art" style="background:linear-gradient(135deg,#07121c,#1f3a52)">💡</div><div class="body"><span class="age">Ages 9–15</span><h3>Logic Lights</h3><p>Switch every light off. Each press flips its neighbours too.</p><div class="tags"><span>Logic</span><span>Puzzles</span></div></div></a>
+    </div>
+  </section>
+
+  <footer class="parents">
+    <b>For parents:</b>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>No ads</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>No sign-up or chat</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>No data collected; progress stays on this device</span>
+  </footer>
+</main>
+<script>
+  // Age filter, remembered for next visit
+  (() => {
+    const btns = document.querySelectorAll('[data-show]');
+    function apply(v) {
+      btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.show === v)));
+      document.getElementById('young').hidden = v === 'older';
+      document.getElementById('older').hidden = v === 'young';
+      try { localStorage.setItem('galaxyGames.filter', v); } catch (e) {}
+    }
+    btns.forEach(b => b.addEventListener('click', () => apply(b.dataset.show)));
+    let saved = 'all'; try { saved = localStorage.getItem('galaxyGames.filter') || 'all'; } catch (e) {}
+    apply(saved);
+  })();
+  // Gentle twinkling stars behind the page
+  (() => {
+    const c = document.getElementById('stars'), x = c.getContext('2d');
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const stars = Array.from({ length: 120 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3, p: Math.random() * 6 }));
+    function size() { const d = Math.min(devicePixelRatio || 1, 2); c.width = innerWidth * d; c.height = innerHeight * d; x.setTransform(d, 0, 0, d, 0, 0); }
+    function draw(t) {
+      x.clearRect(0, 0, innerWidth, innerHeight);
+      for (const s of stars) {
+        x.globalAlpha = still ? 0.6 : 0.35 + 0.4 * Math.sin(t / 700 + s.p);
+        x.fillStyle = '#fff'; x.beginPath(); x.arc(s.x * innerWidth, s.y * innerHeight, s.r, 0, Math.PI * 2); x.fill();
+      }
+      if (!still) requestAnimationFrame(draw);
+    }
+    addEventListener('resize', () => { size(); if (still) draw(0); });
+    size(); requestAnimationFrame(draw);
+  })();
+</script>
+</body>
+</html>

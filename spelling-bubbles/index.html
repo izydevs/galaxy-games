@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spelling Bubbles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header, picture + letter slots, a pond of floating letter bubbles below */
+  :root {
+    --bg: #dff6f4; --ink: #12395a; --card: #ffffff; --muted: #4f6f86;
+    --accent: #13a3b5; --pond: #8fdcf0; --pond-2: #5fc3e4; --slot: #ffffff;
+    --font: "Fredoka", "Comic Sans MS", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 4px solid #ff7a59; outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .top h1 { flex: 1; margin: 0; font-size: clamp(24px, 5vw, 36px); text-align: center; }
+  .round { width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--card); color: var(--ink); display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0,0,0,.12); flex: none; }
+  .round svg { width: 26px; height: 26px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); }
+  .panel { background: var(--card); border-radius: 28px; padding: 24px 20px; box-shadow: 0 6px 0 rgba(0,0,0,.08); text-align: center; display: flex; flex-direction: column; gap: 14px; }
+  .panel p { margin: 0; font-size: 20px; color: var(--muted); }
+  .big { min-height: 66px; border: none; border-radius: 999px; padding: 10px 24px; font-size: 24px; font-weight: 700; color: #fff; background: var(--accent); box-shadow: 0 5px 0 rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .big small { font-size: 16px; font-weight: 600; }
+  .stars { display: flex; justify-content: center; gap: 8px; }
+  .stars svg { width: 64px; height: 64px; }
+
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
+  .word-card { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 10px 0 14px; }
+  .pic { font-size: clamp(70px, 18vw, 110px); line-height: 1; }
+  .tools { display: flex; gap: 10px; }
+  .tool { min-height: 48px; border: none; border-radius: 999px; padding: 6px 18px; background: var(--card); color: var(--ink); font-size: 18px; font-weight: 600; box-shadow: 0 3px 0 rgba(0,0,0,.1); display: flex; align-items: center; gap: 8px; }
+  .tool svg { width: 20px; height: 20px; }
+  .slots { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .slot { width: clamp(46px, 12vw, 64px); height: clamp(56px, 14vw, 74px); border-radius: 14px; background: var(--slot); border: 3px dashed #9cc7d6; display: grid; place-items: center; font-size: clamp(30px, 8vw, 44px); font-weight: 700; }
+  .slot.filled { border: 3px solid var(--accent); background: #e9fbff; }
+  .slot.next { border-color: #ff7a59; }
+  .msg { text-align: center; font-size: 22px; font-weight: 600; min-height: 1.4em; margin: 0 0 8px; }
+  .pond { border-radius: 28px; background: radial-gradient(circle at 30% 20%, var(--pond), var(--pond-2)); padding: clamp(16px, 4vw, 28px); display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(10px, 3vw, 20px); min-height: 180px; align-content: center; }
+  .bubble { width: clamp(62px, 16vw, 84px); aspect-ratio: 1; border-radius: 50%; border: 3px solid rgba(255,255,255,.9); background: radial-gradient(circle at 32% 28%, #ffffff 0 12%, rgba(255,255,255,.55) 13% 30%, rgba(255,255,255,.2) 60%); color: var(--ink); font-size: clamp(30px, 8vw, 42px); font-weight: 700; box-shadow: 0 6px 14px rgba(0,60,90,.18); max-width: 100%; }
+  .bubble.gone { visibility: hidden; }
+  .bubble.hint { box-shadow: 0 0 0 6px #ffd23f; }
+  .bubble.no { animation: shake .4s; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .bubble { animation: bob 3s ease-in-out infinite; animation-delay: var(--d, 0s); }
+    @keyframes bob { 50% { transform: translateY(-8px); } }
+    .bubble.no { animation: shake .4s; }
+  }
+  .confetti { position: fixed; top: -12px; width: 10px; height: 14px; pointer-events: none; animation: fall 2.4s linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="round" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>Spelling Bubbles</h1>
+  <button class="round" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <section class="panel" id="menu">
+    <p>Look at the picture. Pop the bubbles in order to spell the word!</p>
+    <button class="big" style="background:#20a866" data-level="3">3-letter words <small><span data-best="3"></span></small></button>
+    <button class="big" style="background:#ef8a14" data-level="4">4-letter words <small><span data-best="4"></span></small></button>
+    <button class="big" style="background:#e0457a" data-level="5">5-letter words <small><span data-best="5"></span></small></button>
+  </section>
+
+  <section id="game" hidden>
+    <div class="hud"><span id="progress">Word 1 of 8</span><span>⭐ <b id="score">0</b></span></div>
+    <div class="word-card">
+      <div class="pic" id="pic" aria-hidden="true"></div>
+      <div class="slots" id="slots" aria-label="Letters so far"></div>
+      <div class="tools">
+        <button class="tool" id="hear"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/></svg>Hear it</button>
+        <button class="tool" id="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/></svg>Hint</button>
+      </div>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+    <div class="pond" id="pond"></div>
+  </section>
+
+  <section class="panel" id="win" hidden>
+    <h2 style="margin:0;font-size:36px" id="winTitle">Great spelling!</h2>
+    <div class="stars" id="winStars"></div>
+    <p id="winText"></p>
+    <button class="big" style="background:#20a866" id="again">Play again</button>
+    <button class="big" style="background:#4b6cf0" id="back">Choose level</button>
+  </section>
+</main>
+
+<script>
+/* ---------- Settings you can change ---------- */
+const WORDS_PER_ROUND = 8;
+const WORDS = {
+  3: [['CAT', '🐱'], ['DOG', '🐶'], ['SUN', '☀️'], ['BUS', '🚌'], ['HEN', '🐔'], ['PIG', '🐷'], ['BEE', '🐝'], ['COW', '🐮'], ['HAT', '🎩'], ['EGG', '🥚'], ['BED', '🛏️'], ['ANT', '🐜'], ['FOX', '🦊'], ['OWL', '🦉'], ['BAT', '🦇'], ['KEY', '🔑'], ['CAR', '🚗'], ['CUP', '☕']],
+  4: [['FISH', '🐟'], ['CAKE', '🎂'], ['FROG', '🐸'], ['STAR', '⭐'], ['MOON', '🌙'], ['TREE', '🌳'], ['DUCK', '🦆'], ['BALL', '⚽'], ['BOOK', '📖'], ['SHIP', '🚢'], ['BEAR', '🐻'], ['LION', '🦁'], ['BIRD', '🐦'], ['MILK', '🥛'], ['DRUM', '🥁'], ['BOAT', '⛵'], ['RAIN', '🌧️'], ['CORN', '🌽']],
+  5: [['APPLE', '🍎'], ['HOUSE', '🏠'], ['HORSE', '🐴'], ['TRAIN', '🚆'], ['ROBOT', '🤖'], ['PIZZA', '🍕'], ['SNAKE', '🐍'], ['TIGER', '🐯'], ['ZEBRA', '🦓'], ['BREAD', '🍞'], ['SHEEP', '🐑'], ['WHALE', '🐳'], ['MOUSE', '🐭'], ['TRUCK', '🚚'], ['LEMON', '🍋'], ['CLOUD', '☁️'], ['HEART', '❤️'], ['SNAIL', '🐌']],
+};
+const DECOYS = { 3: 2, 4: 3, 5: 3 };
+
+/* ---------- Shared helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.2, type = 'triangle', v = 0.15, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const sfx = { pop: n => tone(500 + n * 90, 0.12, 'sine', 0.12), good: () => { tone(784, 0.18); tone(1175, 0.25, 'triangle', 0.12, 0.08); }, bad: () => tone(260, 0.25, 'sine', 0.12), win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.14, i * 0.13)) };
+function say(t) { try { if (muted || !('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(t); u.rate = 0.85; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+function confetti() { for (let i = 0; i < 70; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.background = ['#13a3b5', '#ffd23f', '#ff7a59', '#4b6cf0', '#ff6fae'][i % 5]; c.style.animationDelay = Math.random() * 0.8 + 's'; document.body.appendChild(c); setTimeout(() => c.remove(), 3400); } }
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const STAR = on => `<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6z" fill="${on ? '#ffc21a' : '#e1ecef'}" stroke="${on ? '#e09a00' : '#c8d8dc'}" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+/* ---------- Game ---------- */
+let level = 3, list = [], idx = 0, pos = 0, score = 0, clean = true, word = '';
+
+function show(id) {
+  ['menu', 'game', 'win'].forEach(s => $(s).hidden = s !== id);
+  if (id === 'menu') document.querySelectorAll('[data-best]').forEach(el => { const b = store.get('spellingBubbles.best.' + el.dataset.best, null); el.textContent = b == null ? '' : `Best: ${b}/${WORDS_PER_ROUND}`; });
+}
+function start(lv) { level = lv; list = shuffle([...WORDS[lv]]).slice(0, WORDS_PER_ROUND); idx = 0; score = 0; show('game'); load(); }
+
+function load() {
+  if (idx >= list.length) return finish();
+  const [w, pic] = list[idx];
+  word = w; pos = 0; clean = true;
+  $('progress').textContent = `Word ${idx + 1} of ${list.length}`;
+  $('score').textContent = score;
+  $('pic').textContent = pic;
+  $('msg').textContent = 'Pop the first letter!';
+  $('slots').innerHTML = [...w].map((_, i) => `<span class="slot ${i === 0 ? 'next' : ''}"></span>`).join('');
+  const abc = 'ABCDEFGHIJKLMNOPRSTUWY'.split('').filter(c => !w.includes(c));
+  const letters = shuffle([...w, ...shuffle(abc).slice(0, DECOYS[level])]);
+  $('pond').innerHTML = letters.map((c, i) => `<button class="bubble" data-c="${c}" style="--d:${(i * 0.37) % 2}s" aria-label="Letter ${c}">${c}</button>`).join('');
+  setTimeout(() => say(w.toLowerCase()), 300);
+}
+
+$('pond').addEventListener('click', e => {
+  const b = e.target.closest('.bubble');
+  if (!b || b.classList.contains('gone') || pos >= word.length) return;
+  document.querySelectorAll('.bubble.hint').forEach(x => x.classList.remove('hint'));
+  if (b.dataset.c === word[pos]) {
+    sfx.pop(pos); b.classList.add('gone');
+    const slots = $('slots').children;
+    slots[pos].textContent = word[pos]; slots[pos].classList.add('filled'); slots[pos].classList.remove('next');
+    pos++;
+    if (pos < word.length) { slots[pos].classList.add('next'); $('msg').textContent = 'Good! Next letter.'; }
+    else {
+      if (clean) score++;
+      $('score').textContent = score;
+      $('msg').textContent = `You spelled ${word}!`;
+      sfx.good(); say(word.toLowerCase());
+      idx++; setTimeout(load, 1500);
+    }
+  } else {
+    sfx.bad(); clean = false;
+    b.classList.remove('no'); void b.offsetWidth; b.classList.add('no');
+    $('msg').textContent = 'Oops! Try a different letter.';
+  }
+});
+$('hear').onclick = () => say(word.toLowerCase());
+$('hint').onclick = () => {
+  if (pos >= word.length) return;
+  clean = false;
+  const b = [...document.querySelectorAll('.bubble:not(.gone)')].find(x => x.dataset.c === word[pos]);
+  if (b) { b.classList.add('hint'); $('msg').textContent = `Look for the letter ${word[pos]}.`; say(word[pos]); }
+};
+
+function finish() {
+  const stars = score >= list.length - 1 ? 3 : score >= list.length / 2 ? 2 : 1;
+  const best = store.get('spellingBubbles.best.' + level, null);
+  if (best == null || score > best) store.set('spellingBubbles.best.' + level, score);
+  $('winStars').innerHTML = [0, 1, 2].map(i => STAR(i < stars)).join('');
+  $('winText').textContent = `${score} of ${list.length} words with no mistakes.`;
+  sfx.win(); confetti(); show('win'); $('again').focus();
+}
+
+document.querySelectorAll('[data-level]').forEach(b => b.onclick = () => start(+b.dataset.level));
+$('again').onclick = () => start(level);
+$('back').onclick = () => show('menu');
+show('menu');
+</script>
+</body>
+</html>

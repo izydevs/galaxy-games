@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Counting Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+<style>
+  /* Layout: header, question line, a grassy garden box with scattered things to count, three big number buttons */
+  :root {
+    --bg: #eaf8df; --ink: #24401c; --card: #ffffff; --muted: #557a4a;
+    --accent: #45a832; --grass: #8fd16e; --grass-2: #6fbf4f; --mark: #ff7a59;
+    --font: "Fredoka", "Comic Sans MS", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 4px solid var(--mark); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .top h1 { flex: 1; margin: 0; font-size: clamp(24px, 5vw, 36px); text-align: center; }
+  .round { width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--card); color: var(--ink); display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0,0,0,.12); flex: none; }
+  .round svg { width: 26px; height: 26px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); }
+  .panel { background: var(--card); border-radius: 28px; padding: 24px 20px; box-shadow: 0 6px 0 rgba(0,0,0,.08); text-align: center; display: flex; flex-direction: column; gap: 14px; }
+  .panel p { margin: 0; font-size: 20px; color: var(--muted); }
+  .big { min-height: 66px; border: none; border-radius: 999px; padding: 10px 24px; font-size: 24px; font-weight: 700; color: #fff; background: var(--accent); box-shadow: 0 5px 0 rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .big small { font-size: 16px; font-weight: 600; }
+  .stars { display: flex; justify-content: center; gap: 8px; }
+  .stars svg { width: 64px; height: 64px; }
+
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
+  .q { text-align: center; font-size: clamp(24px, 5vw, 34px); font-weight: 700; margin: 10px 0; }
+  .garden { position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: 52vh; border-radius: 28px; overflow: hidden; background: radial-gradient(circle at 20% 10%, #b8e89a, transparent 40%), repeating-linear-gradient(100deg, var(--grass), var(--grass) 18px, var(--grass-2) 18px, var(--grass-2) 22px); box-shadow: inset 0 -10px 0 rgba(0,0,0,.08); max-width: 100%; }
+  .thing { position: absolute; transform: translate(-50%, -50%); border: none; background: none; padding: 0; font-size: clamp(30px, 7vw, 46px); line-height: 1; }
+  .thing .n { position: absolute; top: -10px; right: -12px; min-width: 26px; height: 26px; border-radius: 13px; background: var(--mark); color: #fff; font-size: 16px; font-weight: 700; display: grid; place-items: center; padding: 0 5px; }
+  .answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+  .ans { min-height: 80px; border: none; border-radius: 24px; background: var(--card); color: var(--ink); font-size: clamp(36px, 8vw, 48px); font-weight: 700; box-shadow: 0 6px 0 rgba(0,0,0,.12); }
+  .ans.no { background: #ffe1d8; animation: shake .4s; }
+  .ans.yes { background: #c9f2b8; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  .tip { text-align: center; color: var(--muted); font-size: 17px; margin: 10px 0 0; min-height: 1.3em; }
+  .confetti { position: fixed; top: -12px; width: 10px; height: 14px; pointer-events: none; animation: fall 2.4s linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) { .ans.no { animation: none; } .confetti { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="round" id="home" aria-label="All games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+  <h1>Counting Garden</h1>
+  <button class="round" id="mute"></button>
+</header>
+
+<main class="wrap">
+  <section class="panel" id="menu">
+    <p>Count the things in the garden. Tap each one to help you count!</p>
+    <button class="big" style="background:#20a866" data-level="5">Up to 5 <small><span data-best="5"></span></small></button>
+    <button class="big" style="background:#ef8a14" data-level="10">Up to 10 <small><span data-best="10"></span></small></button>
+    <button class="big" style="background:#e0457a" data-level="20">Up to 20 <small><span data-best="20"></span></small></button>
+  </section>
+
+  <section id="game" hidden>
+    <div class="hud"><span id="progress">Question 1 of 10</span><span>⭐ <b id="score">0</b></span></div>
+    <p class="q" id="q" aria-live="polite"></p>
+    <div class="garden" id="garden"></div>
+    <p class="tip" id="tip">Tap each one as you count it.</p>
+    <div class="answers" id="answers"></div>
+  </section>
+
+  <section class="panel" id="win" hidden>
+    <h2 style="margin:0;font-size:36px" id="winTitle">Great counting!</h2>
+    <div class="stars" id="winStars"></div>
+    <p id="winText"></p>
+    <button class="big" style="background:#20a866" id="again">Play again</button>
+    <button class="big" style="background:#4b6cf0" id="back">Choose level</button>
+  </section>
+</main>
+
+<script>
+/* ---------- Settings you can change ---------- */
+const QUESTIONS = 10;
+const THINGS = [['🌼', 'flowers'], ['🐞', 'ladybugs'], ['🍓', 'strawberries'], ['🦋', 'butterflies'], ['🍄', 'mushrooms'], ['🐝', 'bees'], ['🌷', 'tulips'], ['🐌', 'snails'], ['🥕', 'carrots'], ['🐛', 'caterpillars']];
+
+/* ---------- Shared helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let muted = store.get('kidsGames.muted', false), AC;
+function tone(f, d = 0.2, type = 'triangle', v = 0.15, delay = 0) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+const sfx = { count: n => tone(400 + n * 35, 0.1, 'sine', 0.1), good: () => { tone(784, 0.18); tone(1175, 0.25, 'triangle', 0.12, 0.08); }, bad: () => tone(260, 0.25, 'sine', 0.12), win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.14, i * 0.13)) };
+function say(t) { try { if (muted || !('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(t); u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function setMute(m) { muted = m; $('mute').innerHTML = m ? ICON_OFF : ICON_ON; $('mute').setAttribute('aria-label', m ? 'Turn sound on' : 'Mute sound'); store.set('kidsGames.muted', m); }
+$('mute').onclick = () => setMute(!muted); setMute(muted);
+$('home').onclick = () => { if (document.referrer && history.length > 1) history.back(); else location.href = '../index.html'; };
+function confetti() { for (let i = 0; i < 70; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.background = ['#45a832', '#ffd23f', '#ff7a59', '#4b6cf0', '#ff6fae'][i % 5]; c.style.animationDelay = Math.random() * 0.8 + 's'; document.body.appendChild(c); setTimeout(() => c.remove(), 3400); } }
+const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const STAR = on => `<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6z" fill="${on ? '#ffc21a' : '#e3eedb'}" stroke="${on ? '#e09a00' : '#cbdcc0'}" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+/* ---------- Game ---------- */
+let max = 5, q = 0, score = 0, firstTry = true, count = 0, tapped = 0, last = -1;
+
+function show(id) {
+  ['menu', 'game', 'win'].forEach(s => $(s).hidden = s !== id);
+  if (id === 'menu') document.querySelectorAll('[data-best]').forEach(el => { const b = store.get('countingGarden.best.' + el.dataset.best, null); el.textContent = b == null ? '' : `Best: ${b}/${QUESTIONS}`; });
+}
+function start(m) { max = m; q = 0; score = 0; show('game'); next(); }
+
+// spread points out so the things don't overlap
+function spots(n) {
+  const pts = [], minD = n > 12 ? 11 : 15;
+  for (let tries = 0; pts.length < n && tries < 5000; tries++) {
+    const p = { x: rand(8, 92), y: rand(10, 90) };
+    if (pts.every(o => Math.hypot(o.x - p.x, (o.y - p.y) * 0.75) >= minD - tries / 1000)) pts.push(p);
+  }
+  while (pts.length < n) pts.push({ x: rand(8, 92), y: rand(10, 90) }); // the count must always be exact
+  return pts;
+}
+
+function next() {
+  if (q >= QUESTIONS) return finish();
+  firstTry = true; tapped = 0;
+  do { count = rand(max === 5 ? 1 : max === 10 ? 3 : 8, max); } while (count === last);
+  last = count;
+  const [emoji, name] = THINGS[rand(0, THINGS.length - 1)];
+  $('progress').textContent = `Question ${q + 1} of ${QUESTIONS}`;
+  $('score').textContent = score;
+  $('q').textContent = `How many ${name}?`;
+  $('tip').textContent = 'Tap each one as you count it.';
+  $('garden').innerHTML = spots(count).map(p => `<button class="thing" style="left:${p.x}%;top:${p.y}%" aria-label="${name}">${emoji}</button>`).join('');
+  const opts = new Set([count]);
+  while (opts.size < 3) { const v = count + rand(-2, 2); if (v >= 1 && v <= max + 2) opts.add(v); }
+  $('answers').innerHTML = shuffle([...opts]).map(v => `<button class="ans" data-v="${v}">${v}</button>`).join('');
+  say(`How many ${name}?`);
+}
+
+$('garden').addEventListener('click', e => {
+  const t = e.target.closest('.thing');
+  if (!t || t.querySelector('.n')) return;
+  tapped++;
+  t.insertAdjacentHTML('beforeend', `<span class="n">${tapped}</span>`);
+  sfx.count(tapped); say(String(tapped));
+});
+
+$('answers').addEventListener('click', e => {
+  const b = e.target.closest('.ans'); if (!b || b.disabled) return;
+  if (+b.dataset.v === count) {
+    if (firstTry) score++;
+    b.classList.add('yes'); sfx.good(); say(`Yes! ${count}!`);
+    document.querySelectorAll('.ans').forEach(x => x.disabled = true);
+    q++; setTimeout(next, 1300);
+  } else {
+    firstTry = false; sfx.bad();
+    b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); b.disabled = true;
+    $('tip').textContent = 'Not quite. Tap each one to count again!';
+    document.querySelectorAll('.thing .n').forEach(n => n.remove()); tapped = 0;
+  }
+});
+
+function finish() {
+  const stars = score >= 9 ? 3 : score >= 6 ? 2 : 1;
+  const best = store.get('countingGarden.best.' + max, null);
+  if (best == null || score > best) store.set('countingGarden.best.' + max, score);
+  $('winStars').innerHTML = [0, 1, 2].map(i => STAR(i < stars)).join('');
+  $('winText').textContent = `${score} of ${QUESTIONS} right on the first try.`;
+  sfx.win(); confetti(); show('win'); $('again').focus();
+}
+
+document.querySelectorAll('[data-level]').forEach(b => b.onclick = () => start(+b.dataset.level));
+$('again').onclick = () => start(max);
+$('back').onclick = () => show('menu');
+show('menu');
+</script>
+</body>
+</html>
