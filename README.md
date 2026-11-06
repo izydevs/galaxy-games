@@ -1,6 +1,6 @@
 # Galaxy Games
 
-Twelve free learning games for kids aged 5–15. Every game is a single HTML file with no build step, no frameworks and no tracking. Open `index.html` in a browser, or host the folder on any static host.
+Twelve free learning games for kids aged 5–15. Every game is a single HTML file with no build step, no frameworks. The site is supported by Google AdSense ads (see Ads below). Open `index.html` in a browser, or host the folder on any static host.
 
 ## Games
 
@@ -43,6 +43,18 @@ Then open http://localhost:8765.
 - Galaxy Defenders questions live in the `QUESTION BANK` section, one per line: `Question|Right answer|Wrong 1|Wrong 2|Wrong 3|Why`.
 - Word Forge words live in `WORDS_TEXT`, one per line: `WORD|clue`.
 
+## Ads
+
+Every page loads Google AdSense **Auto ads**; you choose where ads appear in AdSense → Ads → By site. Ads are requested as non-personalised because the players are children.
+
+To go live, replace the placeholder publisher ID `XXXXXXXXXXXXXXXX` with your own (the digits after `ca-pub-`) in every page and in `ads.txt`:
+
+```bash
+grep -rl XXXXXXXXXXXXXXXX . | xargs sed -i '' 's/XXXXXXXXXXXXXXXX/1234567890123456/g'
+```
+
+`ads.txt` must be served from the root of your domain (for example `https://example.com/ads.txt`).
+
 ## Privacy
 
-No ads, no sign-up, no chat, no data sent anywhere. Scores and progress are saved only in the browser's local storage on the device.
+No sign-up and no chat. Scores and progress are saved only in the browser's local storage on the device. Google AdSense may use cookies to serve and measure ads.
